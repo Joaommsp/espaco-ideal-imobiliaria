@@ -1,0 +1,41 @@
+GET http://localhost:3000/propriedades
+
+###
+POST http://localhost:3000/propriedades
+Content-Type: application/json
+
+{
+    "titulo": "Apartamento alí ó",
+    "descricao": "Tá alí ó",
+    "endereco": "Alí ó",
+    "preco": 5800.00,
+    "idUsuario": 1
+}
+
+###
+GET http://localhost:3000/usuario-admin
+
+###
+POST http://localhost:3000/usuario-admin
+Content-Type: application/json
+
+{
+    "idFirebase": "01",
+    "nome": "pedro",
+    "email": "pedro@email.com",
+    "senha": "1234"
+}
+
+###
+GET http://localhost:3000/usuario-cliente
+
+###
+POST http://localhost:3000/usuario-cliente
+Content-Type: application/json
+
+{
+    "idFirebase": "001",
+    "nome": "joão",
+    "email": "joão@email.com",
+    "senha": "4321"
+}
