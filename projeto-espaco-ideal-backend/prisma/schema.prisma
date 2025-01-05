@@ -1,0 +1,68 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Users {
+  id         String @id
+  firebaseId String @unique
+  nome       String
+  email      String @unique
+  senha      String
+}
+
+model Property {
+  id              Int    @id @default(autoincrement())
+  registro        String
+  endereco        String
+  qtdQuartos      Int
+  qtdVagasGaragem Int
+  descricao       String
+  preco           Float
+  urlImagem       String
+  area            Float
+
+  cityId      Int
+  categoryId  Int
+  transacaoId Int
+
+  city      City       @relation(fields: [cityId], references: [id])
+  category  Category   @relation(fields: [categoryId], references: [id])
+  transacao Transacao  @relation(fields: [transacaoId], references: [id])
+  schedules Schedule[]
+}
+
+model City {
+  id         Int    @id @default(autoincrement())
+  nomeCidade String
+
+  properties Property[]
+}
+
+model Category {
+  id            Int    @id @default(autoincrement())
+  nomeCategoria String
+
+  properties Property[]
+}
+
+model Transacao {
+  id            Int    @id @default(autoincrement())
+  nomeTransacao String
+
+  properties Property[]
+}
+
+model Schedule {
+  id             Int      @id @default(autoincrement())
+  userName       String
+  propertyId     Int
+  propertyAdress String
+  date           DateTime
+
+  Property Property @relation(fields: [propertyId], references: [id])
+}
