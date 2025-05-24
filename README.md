@@ -16,7 +16,7 @@
 
 ###
 
-<h3>Histórico de Alterações</h3>
+<h3>Histórico de Alterações*</h3>
 
 ##
 
