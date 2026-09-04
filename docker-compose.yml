@@ -1,0 +1,108 @@
+# Sobe o projeto inteiro com um comando: banco, API, site e painel.
+# As três aplicações rodam em modo de desenvolvimento, com o código montado
+# do host — editar um arquivo recarrega o serviço sem rebuild.
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: espaco-ideal-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-espacoideal}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-espacoideal}
+      POSTGRES_DB: ${POSTGRES_DB:-espacoideal}
+    ports:
+      - "${DB_PORT:-2005}:5432"
+    volumes:
+      - dados-postgres:/var/lib/postgresql/data
+    healthcheck:
+      # Os outros serviços só sobem depois que o banco aceita conexão.
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-espacoideal} -d ${POSTGRES_DB:-espacoideal}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  backend:
+    build: ./projeto-espaco-ideal-backend
+    container_name: espaco-ideal-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-espacoideal}:${POSTGRES_PASSWORD:-espacoideal}@db:5432/${POSTGRES_DB:-espacoideal}?schema=public
+    # Aplica as migrations e popula o catálogo antes de servir.
+    command: >
+      sh -c "npx prisma migrate deploy &&
+             npx prisma db seed &&
+             npm run start:dev"
+    ports:
+      - "${API_PORT:-2002}:3002"
+    volumes:
+      - ./projeto-espaco-ideal-backend:/app
+      - backend-node-modules:/app/node_modules
+
+  frontend:
+    build: ./projeto-espaco-ideial-frontend
+    container_name: espaco-ideal-site
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      # O navegador acessa a API pela porta publicada no host...
+      NEXT_PUBLIC_API_URL: http://localhost:${API_PORT:-2002}
+      # ...e o servidor do Next, pelo nome do serviço na rede do Docker.
+      API_URL_INTERNA: http://backend:3002
+      NEXT_PUBLIC_FIREBASE_API_KEY: ${NEXT_PUBLIC_FIREBASE_API_KEY}
+      NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}
+      NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${NEXT_PUBLIC_FIREBASE_PROJECT_ID}
+      NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET}
+      NEXT_PUBLIC_FIREBASE_SENDER_ID: ${NEXT_PUBLIC_FIREBASE_SENDER_ID}
+      NEXT_PUBLIC_FIREBASE_APP_ID: ${NEXT_PUBLIC_FIREBASE_APP_ID}
+    ports:
+      - "${SITE_PORT:-2000}:3000"
+    volumes:
+      - ./projeto-espaco-ideial-frontend:/app
+      - frontend-node-modules:/app/node_modules
+      - frontend-next:/app/.next
+
+  admin:
+    build: ./projeto-espaco-ideial-admin
+    container_name: espaco-ideal-admin
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:${API_PORT:-2002}
+      API_URL_INTERNA: http://backend:3002
+      # As fotos dos imóveis são servidas pelo site, não pelo painel. Quem as
+      # busca é o servidor do Next, então o endereço é o do serviço na rede
+      # do Docker — o navegador só vê a URL já otimizada em /_next/image.
+      NEXT_PUBLIC_SITE_URL: http://frontend:3000
+      NEXT_PUBLIC_FIREBASE_API_KEY: ${NEXT_PUBLIC_FIREBASE_API_KEY}
+      NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}
+      NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${NEXT_PUBLIC_FIREBASE_PROJECT_ID}
+      NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET}
+      NEXT_PUBLIC_FIREBASE_SENDER_ID: ${NEXT_PUBLIC_FIREBASE_SENDER_ID}
+      NEXT_PUBLIC_FIREBASE_APP_ID: ${NEXT_PUBLIC_FIREBASE_APP_ID}
+      NEXT_PUBLIC_FIREBASE_ADMIN_API_KEY: ${NEXT_PUBLIC_FIREBASE_ADMIN_API_KEY}
+      NEXT_PUBLIC_FIREBASE_ADMIN_AUTH_DOMAIN: ${NEXT_PUBLIC_FIREBASE_ADMIN_AUTH_DOMAIN}
+      NEXT_PUBLIC_FIREBASE_ADMIN_PROJECT_ID: ${NEXT_PUBLIC_FIREBASE_ADMIN_PROJECT_ID}
+      NEXT_PUBLIC_FIREBASE_ADMIN_STORAGE_BUCKET: ${NEXT_PUBLIC_FIREBASE_ADMIN_STORAGE_BUCKET}
+      NEXT_PUBLIC_FIREBASE_ADMIN_SENDER_ID: ${NEXT_PUBLIC_FIREBASE_ADMIN_SENDER_ID}
+      NEXT_PUBLIC_FIREBASE_ADMIN_APP_ID: ${NEXT_PUBLIC_FIREBASE_ADMIN_APP_ID}
+    ports:
+      # O script do painel roda em -p 4000; o mapeamento segue a porta real.
+      - "${ADMIN_PORT:-2001}:4000"
+    volumes:
+      - ./projeto-espaco-ideial-admin:/app
+      - admin-node-modules:/app/node_modules
+      - admin-next:/app/.next
+
+volumes:
+  dados-postgres:
+  backend-node-modules:
+  frontend-node-modules:
+  frontend-next:
+  admin-node-modules:
+  admin-next:
