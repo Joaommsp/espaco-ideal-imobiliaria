@@ -1,23 +1,11 @@
 import { useEffect, useState } from "react";
 import { getProperty } from "../lib/services/api-service";
+import type { Imovel as PropertyInterface } from "@/lib/types/imovel";
 import Image from "next/image";
 import { IconHome, IconCar, IconBed, IconMapPin } from "@tabler/icons-react";
 import Link from "next/link";
+import { formatarPreco } from "../lib/utils/formatters";
 
-export interface PropertyInterface {
-  id: number;
-  registro: string;
-  endereco: string;
-  qtdQuartos: number;
-  qtdVagasGaragem: number;
-  descricao: string;
-  preco: number;
-  urlImagem: string;
-  cityId: number;
-  categoryId: number;
-  transacaoId: number;
-  area: number;
-}
 
 export default function NewProperties() {
   const [properties, setProperties] = useState([]);
@@ -44,7 +32,7 @@ export default function NewProperties() {
 
   const loadCategories = async () => {
     try {
-      const response = await fetch("http://localhost:3002/categories/all");
+      const response = await fetch("http://localhost:2002/categories/all");
       const data = await response.json();
       const categoryMap: Record<number, string> = {};
       data.forEach((category: { id: number; nomeCategoria: string }) => {
@@ -58,7 +46,7 @@ export default function NewProperties() {
 
   const loadCities = async () => {
     try {
-      const response = await fetch("http://localhost:3002/cities/all");
+      const response = await fetch("http://localhost:2002/cities/all");
       const data = await response.json();
       const cityMap: Record<number, string> = {};
       data.forEach((city: { id: number; nomeCidade: string }) => {
@@ -72,7 +60,7 @@ export default function NewProperties() {
 
   const loadTransactions = async () => {
     try {
-      const response = await fetch("http://localhost:3002/transactions/all");
+      const response = await fetch("http://localhost:2002/transactions/all");
       const data = await response.json();
       const transactionMap: Record<number, string> = {};
       data.forEach((transaction: { id: number; nomeTransacao: string }) => {
@@ -170,16 +158,13 @@ export default function NewProperties() {
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className="text-xs md:text-sm font-bold text-custom-black">
-                      R$
-                    </span>
-                    <span className="pl-1 text-base md:text-lg text-custom-black">
-                      {property.preco.toFixed(2)}
+                    <span className="text-base md:text-lg font-semibold text-custom-black">
+                      {formatarPreco(property.preco, property.transacao?.nomeTransacao)}
                     </span>
                   </div>
                   <Link
                     className="uppercase text-[12px] z-10 px-4 py-2 text-gray-50 bg-orange-primary rounded-md  font-medium"
-                    href={`http://localhost:3000/properties/${property.id}`}
+                    href={`/properties/${property.id}`}
                   >
                     Detalhes
                   </Link>

@@ -1,7 +1,7 @@
-const API_PROPERTIES_URL = "http://localhost:3002/properties";
-const API_CITIES_URL = "http://localhost:3002/cities";
-const API_CATEGORIES_URL = "http://localhost:3002/categories";
-const API_TRANSATIONS_URL = "http://localhost:3002/transations";
+const API_PROPERTIES_URL = "http://localhost:2002/properties";
+const API_CITIES_URL = "http://localhost:2002/cities";
+const API_CATEGORIES_URL = "http://localhost:2002/categories";
+const API_TRANSATIONS_URL = "http://localhost:2002/transactions";
 
 async function getProperty() {
   try {

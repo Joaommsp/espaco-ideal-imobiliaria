@@ -23,6 +23,7 @@ import NewProperties from "@/components/NewProperties";
 import Link from "next/link";
 import ReviewsSection from "@/components/ReviewsSection";
 import Footer from "@/components/Footer";
+import { listarCategorias, listarCidades } from "@/lib/services/imoveis";
 
 export interface City {
   id: number;
@@ -64,47 +65,18 @@ export default function Home() {
     setPurchaseType(option);
   }
 
-  async function fetchCities() {
-    try {
-      const response = await fetch("http://localhost:3002/cities/all");
-      if (!response.ok) throw new Error("Erro ao buscar cidades");
-      return await response.json();
-    } catch (error) {
-      console.error(error);
-      return [];
-    }
-  }
-
-  async function fetchCategories() {
-    try {
-      const response = await fetch("http://localhost:3002/categories/all");
-      if (!response.ok) throw new Error("Erro ao buscar categorias");
-      return await response.json();
-    } catch (error) {
-      console.error(error);
-      return [];
-    }
-  }
-
-  async function fetchTransactions() {
-    try {
-      const response = await fetch("http://localhost:3002/transactions/all");
-      if (!response.ok) throw new Error("Erro ao buscar transações");
-      return await response.json();
-    } catch (error) {
-      console.error(error);
-      return [];
-    }
-  }
-
   const loadLists = async () => {
-    const [cityData, categoryData] = await Promise.all([
-      fetchCities(),
-      fetchCategories(),
-      fetchTransactions(),
-    ]);
-    setCitiesList(cityData);
-    setCategoriesList(categoryData);
+    try {
+      // A camada de serviço devolve {id, nome}; esta tela ainda usa o formato
+      // antigo da API. A conversão fica aqui até a home ser redesenhada.
+      const [cidades, categorias] = await Promise.all([listarCidades(), listarCategorias()]);
+      setCitiesList(cidades.map((cidade) => ({ id: cidade.id, nomeCidade: cidade.nome })));
+      setCategoriesList(
+        categorias.map((categoria) => ({ id: categoria.id, nomeCategoria: categoria.nome })),
+      );
+    } catch (falha) {
+      console.error("Não foi possível carregar as listas de busca:", falha);
+    }
   };
 
   return (

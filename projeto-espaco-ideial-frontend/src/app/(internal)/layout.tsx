@@ -4,6 +4,8 @@ import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { ReactNode, useEffect, useState } from "react";
 import { AuthProvider } from "../contexts/AuthContext";
+import { Cabecalho } from "@/components/landing/Cabecalho";
+import { Rodape } from "@/components/landing/Rodape";
 
 import { clientAuth, clientDb } from "@/lib/services/firebase-service";
 import { onAuthStateChanged, signOut } from "firebase/auth";
@@ -95,58 +97,20 @@ export default function AuthenticationLayout(props: AuthenticationLayoutProps) {
 
   return (
     <div className="relative overflow-hidden">
-      <header className="relative w-full h-12 md:h-16 bg-transparent flex items-center px-2 md:px-6 lg:px-10">
-        <div className="w-full h-full flex items-center border-b-2 border-custom-white justify-between">
-          <Link href={"/home"}>
-            <Image
-              src={Logo}
-              width={154}
-              alt="..."
-              className="w-[124px] md:w-[154px]"
-            />
-          </Link>
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex items-center">
-            <ul className="hidden md:flex items-center gap-4 text-sm font-medium text-custom-black">
-              <li>
-                <Link href={""}>Vendas</Link>
-              </li>
-              <li>
-                <Link href={""}>Aluguéis</Link>
-              </li>
-              <li>
-                <Link href={""}>Contato</Link>
-              </li>
-            </ul>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="hidden md:flex flex-row items-center">
-              {isLoggedIn && (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-custom-gray-strong font-medium uppercase">
-                    Bem vindo,{" "}
-                    <span className="text-custom-black">{userName}</span>
-                  </span>
-                  <Image
-                    className="border-2 rounded-full"
-                    src={
-                      "https://firebasestorage.googleapis.com/v0/b/espaco-ideal-auth-storage.appspot.com/o/assets%2Fdefaul-pfp.jpg?alt=media&token=619d102e-e104-4d63-af11-2b72b4421c7d"
-                    }
-                    width={32}
-                    height={32}
-                    alt="..."
-                  />
-                </div>
-              )}
-            </div>
-            <button
-              onClick={controllMenu}
-              className="hover:scale-110 transition ease-in-out"
-            >
-              <IconMenuDeep size={24} color="#141414" />
-            </button>
-          </div>
-        </div>
-      </header>
+      <Cabecalho
+        tom="claro"
+        usuario={isLoggedIn ? String(userName ?? "") : null}
+        acaoDeUsuario={
+          <button
+            onClick={controllMenu}
+            aria-label="Abrir o menu"
+            className="grid size-10 place-items-center rounded-full text-tinta transition-colors hover:bg-areia-escura"
+          >
+            <IconMenuDeep size={22} />
+          </button>
+        }
+      />
+
       <AnimatePresence>
         {openMenu && (
           <motion.aside

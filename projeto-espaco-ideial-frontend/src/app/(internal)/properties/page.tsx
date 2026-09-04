@@ -1,294 +1,314 @@
 "use client";
 
-import Image from "next/image";
-import { useEffect, useState } from "react";
-import {
-  IconSearch,
-  IconMapPinFilled,
-  IconHome,
-  IconBed,
-  IconCar,
-  IconMail,
-  IconPhone,
-} from "@tabler/icons-react";
-
 import Link from "next/link";
-import Footer from "@/components/Footer";
-import PropertiesList from "@/components/PropertiesList";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { AvisoDeErro } from "@/components/imoveis/AvisoDeErro";
+import { EsqueletoDeCards } from "@/components/imoveis/EsqueletoDeCards";
+import { GradeDeImoveis, type ModoDeExibicao } from "@/components/imoveis/GradeDeImoveis";
+import { Botao } from "@/components/ui/Botao";
+import { FaixaDePreco } from "@/components/ui/FaixaDePreco";
+import { MenuDeOpcoes } from "@/components/ui/MenuDeOpcoes";
+import { Paginacao } from "@/components/ui/Paginacao";
+import { Segmentado } from "@/components/ui/Segmentado";
+import {
+  listarCategorias,
+  listarCidades,
+  listarImoveis,
+  listarTransacoes,
+} from "@/lib/services/imoveis";
+import type { Imovel, Opcao } from "@/lib/types/imovel";
 
-export interface City {
-  id: number;
-  nomeCidade: string;
-}
+type Situacao = "carregando" | "pronto" | "erro";
+type Ordem = "recentes" | "menor" | "maior" | "area";
 
-export interface Category {
-  id: number;
-  nomeCategoria: string;
-}
+/** Referências estáveis: nada de `[]` novo a cada render. */
+const SEM_IMOVEIS: Imovel[] = [];
+const SEM_OPCOES: Opcao[] = [];
 
-export interface Transaction {
-  id: number;
-  nomeTransacao: string;
-}
+const TODAS = 0;
+const QUALQUER = 0;
 
-export default function Properties() {
-  const [isBuySelected, setIsBuySelected] = useState(true);
-  const [purchaseType, setPurchaseType] = useState("Compra");
+/** Oito por página: enche a grade de 3 colunas sem exigir rolagem longa. */
+const POR_PAGINA = 8;
 
-  // LISTAGEM DE CATEGORIAS, CIDADES E TRANSAÇÕES
-  const [categoriesList, setCategoriesList] = useState<Category[]>([]);
-  const [citiesList, setCitiesList] = useState<City[]>([]);
+const ORDENS: { valor: Ordem; rotulo: string }[] = [
+  { valor: "recentes", rotulo: "Mais recentes" },
+  { valor: "menor", rotulo: "Menor preço" },
+  { valor: "maior", rotulo: "Maior preço" },
+  { valor: "area", rotulo: "Maior área" },
+];
 
-  // ESTADOS PARA O FILTRO
-  const [transactionId, setTransactionId] = useState<number | null>(1);
-  const [cityId, setCityId] = useState<number | null>(null);
-  const [categoryId, setCategoryId] = useState<number | null>(null);
-  const [qtdQuartos, setQtdQuartos] = useState<number | null>(null);
-  const [qtdVagasGaragem, setQtdVagasGaragem] = useState<number | null>(null);
+export default function PaginaDeImoveis() {
+  const [imoveis, setImoveis] = useState<Imovel[]>(SEM_IMOVEIS);
+  const [cidades, setCidades] = useState<Opcao[]>(SEM_OPCOES);
+  const [categorias, setCategorias] = useState<Opcao[]>(SEM_OPCOES);
+  const [transacoes, setTransacoes] = useState<Opcao[]>(SEM_OPCOES);
+  const [situacao, setSituacao] = useState<Situacao>("carregando");
+  const [erro, setErro] = useState("");
 
-  useEffect(() => {
-    window.scrollTo(0, 0);
-    loadLists();
+  const [cidade, setCidade] = useState<number | string>(TODAS);
+  const [categoria, setCategoria] = useState<number | string>(TODAS);
+  const [transacao, setTransacao] = useState<number | string>(QUALQUER);
+  const [quartosMinimos, setQuartosMinimos] = useState<number | string>(0);
+  const [vagasMinimas, setVagasMinimas] = useState<number | string>(0);
+  const [tetoDePreco, setTetoDePreco] = useState<number | null>(null);
+  const [ordem, setOrdem] = useState<Ordem>("recentes");
+  const [modo, setModo] = useState<ModoDeExibicao>("grade");
+  const [pagina, setPagina] = useState(1);
+
+  const carregar = useCallback(async () => {
+    setSituacao("carregando");
+    setErro("");
+
+    try {
+      const [lista, listaCidades, listaCategorias, listaTransacoes] = await Promise.all([
+        listarImoveis(),
+        listarCidades(),
+        listarCategorias(),
+        listarTransacoes(),
+      ]);
+      setImoveis(lista);
+      setCidades(listaCidades);
+      setCategorias(listaCategorias);
+      setTransacoes(listaTransacoes);
+      setSituacao("pronto");
+    } catch (falha) {
+      setErro(falha instanceof Error ? falha.message : "Erro desconhecido ao falar com a API.");
+      setSituacao("erro");
+    }
   }, []);
 
-  function toggleBuyOption(state: boolean, option: string) {
-    setIsBuySelected(state);
-    setPurchaseType(option);
+  useEffect(() => {
+    void carregar();
+  }, [carregar]);
+
+  // A faixa acompanha o catálogo: não faz sentido oferecer um teto de dez
+  // milhões se o imóvel mais caro custa um.
+  const precoMaximo = useMemo(
+    () => (imoveis.length ? Math.ceil(Math.max(...imoveis.map((i) => i.preco)) / 10000) * 10000 : 0),
+    [imoveis],
+  );
+  // Sem arredondar para baixo: com aluguel de R$ 1.650 no catálogo, o piso
+  // virava R$ 0,00 e a faixa mentia sobre o que existe.
+  const precoMinimo = useMemo(
+    () => (imoveis.length ? Math.min(...imoveis.map((i) => i.preco)) : 0),
+    [imoveis],
+  );
+  const teto = tetoDePreco ?? precoMaximo;
+
+  const visiveis = useMemo(() => {
+    const filtrados = imoveis.filter((imovel) => {
+      if (cidade !== TODAS && imovel.cityId !== cidade) return false;
+      if (categoria !== TODAS && imovel.categoryId !== categoria) return false;
+      if (transacao !== QUALQUER && imovel.transacaoId !== transacao) return false;
+      if (imovel.qtdQuartos < Number(quartosMinimos)) return false;
+      if (imovel.qtdVagasGaragem < Number(vagasMinimas)) return false;
+      if (precoMaximo > 0 && imovel.preco > teto) return false;
+      return true;
+    });
+
+    const porOrdem: Record<Ordem, (a: Imovel, b: Imovel) => number> = {
+      recentes: () => 0,
+      menor: (a, b) => a.preco - b.preco,
+      maior: (a, b) => b.preco - a.preco,
+      area: (a, b) => b.area - a.area,
+    };
+
+    return [...filtrados].sort(porOrdem[ordem]);
+  }, [
+    imoveis,
+    cidade,
+    categoria,
+    transacao,
+    quartosMinimos,
+    vagasMinimas,
+    teto,
+    precoMaximo,
+    ordem,
+  ]);
+
+  const totalDePaginas = Math.max(1, Math.ceil(visiveis.length / POR_PAGINA));
+
+  // Filtro novo com a lista menor deixaria a pessoa numa página que não existe.
+  const paginaAtual = Math.min(pagina, totalDePaginas);
+  const daPagina = visiveis.slice((paginaAtual - 1) * POR_PAGINA, paginaAtual * POR_PAGINA);
+
+  function irPara(destino: number) {
+    setPagina(destino);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  async function fetchCities() {
-    try {
-      const response = await fetch("http://localhost:3002/cities/all");
-      if (!response.ok) throw new Error("Erro ao buscar cidades");
-      return await response.json();
-    } catch (error) {
-      console.error(error);
-      return [];
-    }
+  const filtrosAtivos =
+    cidade !== TODAS ||
+    categoria !== TODAS ||
+    transacao !== QUALQUER ||
+    Number(quartosMinimos) > 0 ||
+    Number(vagasMinimas) > 0 ||
+    (tetoDePreco !== null && tetoDePreco < precoMaximo);
+
+  function limparFiltros() {
+    setCidade(TODAS);
+    setCategoria(TODAS);
+    setTransacao(QUALQUER);
+    setQuartosMinimos(0);
+    setVagasMinimas(0);
+    setTetoDePreco(null);
+    setOrdem("recentes");
+    setPagina(1);
   }
 
-  async function fetchCategories() {
-    try {
-      const response = await fetch("http://localhost:3002/categories/all");
-      if (!response.ok) throw new Error("Erro ao buscar categorias");
-      return await response.json();
-    } catch (error) {
-      console.error(error);
-      return [];
-    }
+  function contarNaCidade(id: number): string {
+    const total = imoveis.filter((imovel) => imovel.cityId === id).length;
+    return total > 0 ? String(total) : "";
   }
-
-  async function fetchTransactions() {
-    try {
-      const response = await fetch("http://localhost:3002/transactions/all");
-      if (!response.ok) throw new Error("Erro ao buscar transações");
-      return await response.json();
-    } catch (error) {
-      console.error(error);
-      return [];
-    }
-  }
-
-  const loadLists = async () => {
-    const [cityData, categoryData] = await Promise.all([
-      fetchCities(),
-      fetchCategories(),
-      fetchTransactions(),
-    ]);
-    setCitiesList(cityData);
-    setCategoriesList(categoryData);
-  };
 
   return (
-    <main className="w-full min-h-screen h-full flex flex-col items-center">
-      <div className="w-full h-full md:h-[600px] bg-home-pattern bg-center bg-cover bg-no-repeat flex items-center">
-        <div className="w-full h-full pt-20  pb-10 md:py-0 bg-[#00000040] flex flex-col justify-center items-center gap-20">
-          <section className="w-full h-full flex flex-col justify-center items-center gap-20 max-w-[1200px]">
-            <div className="flex flex-col items-start justify-between px-2 md:px-10 w-full gap-8">
-              <form className="w-full flex flex-col gap-2" action="">
-                <div className="order-2 md:order-1 flex flex-col md:flex-row items-center gap-2 md:gap-4">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      toggleBuyOption(true, "Compra");
-                      setTransactionId(1);
-                    }}
-                    className={`w-full md:w-fit py-2 px-4 text-xs font-medium rounded-md uppercase ${
-                      isBuySelected
-                        ? "bg-gray-400 md:bg-orange-primary text-gray-50"
-                        : "bg-gray-50 text-custom-black"
-                    }`}
-                  >
-                    compra
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      toggleBuyOption(false, "Locação");
-                      setTransactionId(2);
-                    }}
-                    className={`w-full md:w-fit py-2 px-4 text-xs font-medium rounded-md uppercase ${
-                      !isBuySelected
-                        ? "bg-gray-400 md:bg-orange-primary text-gray-50"
-                        : "bg-gray-50 text-custom-black md:bg-gray-50 md:text-orange-primary"
-                    }`}
-                  >
-                    locação
-                  </button>
-                  <span className="text-custom-white text-xs">
-                    Selecionado:{" "}
-                    <strong className="font-medium">{purchaseType}</strong>
-                  </span>
-                </div>
-                <div className="order-1 md:order-2  flex flex-col md:flex-row items-center gap-2 w-full p-4 bg-custom-white rounded-md">
-                  <select
-                    className="w-full block text-xs bg-neutral-300 p-2 border-2 border-transparent rounded-md focus:border-orange-primary outline-none"
-                    name=""
-                    id=""
-                    value={String(cityId)}
-                    onChange={(e) => setCityId(parseInt(e.target.value))}
-                  >
-                    <optgroup>
-                      <option className="bg-gray-50" value="">
-                        Cidade
-                      </option>
-                      {citiesList.map((city) => (
-                        <option key={city.id} value={city.id}>
-                          {city.nomeCidade}
-                        </option>
-                      ))}
-                    </optgroup>
-                  </select>
-                  <select
-                    className="w-full block text-xs bg-neutral-300 p-2 border-2 border-transparent rounded-md focus:border-orange-primary outline-none"
-                    name=""
-                    id="categoryId"
-                    value={String(categoryId)}
-                    onChange={(e) => setCategoryId(parseInt(e.target.value))}
-                  >
-                    <optgroup>
-                      <option className="bg-gray-50" value="">
-                        Tipo de Imóvel
-                      </option>
-                      {categoriesList.map((category) => (
-                        <option key={category.id} value={category.id}>
-                          {category.nomeCategoria}
-                        </option>
-                      ))}
-                    </optgroup>
-                  </select>
-                  <input
-                    className="w-full block text-xs bg-neutral-300 p-2 border-2 border-transparent rounded-md focus:border-orange-primary outline-none placeholder:text-neutral-800"
-                    name=""
-                    id=""
-                    type="number"
-                    placeholder="Quantidade de quartos"
-                    value={String(qtdQuartos)}
-                    onChange={(e) => setQtdQuartos(parseInt(e.target.value))}
-                  ></input>
-                  <input
-                    className="w-full block text-xs bg-neutral-300 p-2 border-2 border-transparent rounded-md focus:border-orange-primary outline-none placeholder:text-neutral-800"
-                    name=""
-                    id=""
-                    type="number"
-                    placeholder="Vagas na garagem"
-                    value={String(qtdVagasGaragem)}
-                    onChange={(e) =>
-                      setQtdVagasGaragem(parseInt(e.target.value))
-                    }
-                  ></input>
-                  <button
-                    type="button"
-                    className="flex items-center gap-2 w-full justify-center bg-orange-primary rounded-md px-4 py-2"
-                  >
-                    <IconSearch size={18} stroke={2} color="#FFFFFF" />
-                    <Link
-                      href={`/search/properties/${transactionId}/${cityId}/${categoryId}/${qtdQuartos}/${qtdVagasGaragem}`}
-                      className="uppercase text-xs font-medium text-custom-white"
-                    >
-                      buscar
-                    </Link>
-                  </button>
-                </div>
-              </form>
-              <div className="flex flex-wrap items-center w-fit justify-start text-gray-50 bg-white bg-opacity-10 backdrop-blur-md rounded-lg border border-white/20 shadow-lg py-2 px-2 md:px-8 gap-2 md:gap-4">
-                <span className="text-sm font-medium">Filtre por</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-light">Cidade</span>
-                  <IconMapPinFilled size={18} color="#FFFFFF" />
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-light">Tipo de imóvel</span>
-                  <IconHome size={18} color="#FFFFFF" />
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-light">Total de quartos</span>
-                  <IconBed size={18} color="#FFFFFF" />
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-light">Garagem </span>
-                  <IconCar size={18} color="#FFFFFF" />
-                </div>
-              </div>
-            </div>
-          </section>
-        </div>
-      </div>
-      <div className="w-full h-full flex items-center justify-center py-10 bg-[#EBF0F6]">
-        <section className="w-full flex-col flex items-center justify-center max-w-[1200px]">
-          <div className="w-full flex-col flex items-center justify-center gap-4">
-            <div className="w-[176px] h-[5px] bg-orange-primary rounded-full"></div>
-          </div>
-          <PropertiesList />
-        </section>
-      </div>
-      <div className="flex flex-col md:flex-row items-center gap-8 bg-white w-full max-w-[1200px] px-4 md:px-10 py-10 md:py-20 justify-between">
-        <div className="w-full flex justify-center items-center order-2 md:order-1">
-          <Image
-            src="https://firebasestorage.googleapis.com/v0/b/espaco-ideal-auth-storage.appspot.com/o/assets%2Fabout-us-img02.png?alt=media&token=0cc9c417-51e2-46ab-96d3-0ca155779a7c"
-            alt="..."
-            width={400}
-            height={400}
-          />
-        </div>
-        <div className="flex flex-col w-full gap-12 order-1 md:order-2 ">
-          <div className="flex flex-col  gap-4 ">
-            <h3 className="text-custom-black md:text-xl font-medium leading-6">
-              Uma equipe inteira especializada no assunto
-            </h3>
-            <p className="text-sm md:text-base text-custom-gray-strong">
-              Com profundo conhecimento do mercado e das melhores oportunidades,
-              oferecemos um atendimento personalizado para garantir que você
-              faça a escolha certa, seja para encontrar o lar ideal ou o
-              investimento perfeito.
-            </p>
-            <Link
-              href={""}
-              className="uppercase px-4 py-2 bg-custom-black text-custom-white font-medium rounded-md text-xs md:text-sm w-fit"
-            >
-              FALE CONOSCO
+    <main className="min-h-dvh bg-areia">
+      <header className="border-b border-areia-linha bg-white">
+        <div className="mx-auto max-w-[1180px] px-6 py-10">
+          <nav aria-label="Você está aqui" className="text-sm text-tinta-fraca">
+            <Link href="/" className="hover:text-laranja">
+              Início
             </Link>
-          </div>
+            <span aria-hidden> / </span>
+            <span className="text-tinta">Imóveis</span>
+          </nav>
+          <h1 className="mt-3 font-display text-[clamp(1.9rem,4vw,2.7rem)] font-semibold">
+            Todos os imóveis
+          </h1>
+          <p className="mt-2 max-w-[54ch] text-tinta-suave">
+            {situacao === "pronto"
+              ? `${imoveis.length} ${imoveis.length === 1 ? "imóvel disponível" : "imóveis disponíveis"} para compra e locação.`
+              : "Carregando o catálogo…"}
+          </p>
+        </div>
+      </header>
 
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-2 md:gap-4">
-              <IconMail size={20} color="#F46530" />
-              <span className="text-xs md:text-sm font-medium text-custom-black">
-                espaco_ideal.imob@outlook.com
-              </span>
-            </div>
-            <div className="flex items-center gap-2 md:gap-4">
-              <IconPhone size={20} color="#F46530" />
-              <span className="text-xs md:text-sm font-medium text-custom-black">
-                75 9 4002-0822
-              </span>
-            </div>
+      <div className="mx-auto max-w-[1180px] px-6 py-8">
+        <div className="mb-7 flex flex-wrap items-end gap-4 rounded-cartao border border-areia-linha bg-white p-4">
+          <Segmentado
+            rotulo="Negócio"
+            valor={transacao}
+            aoEscolher={(valor) => { setTransacao(valor); setPagina(1); }}
+            opcoes={[
+              { valor: QUALQUER, rotulo: "Todos" },
+              ...transacoes.map((opcao) => ({ valor: opcao.id, rotulo: opcao.nome })),
+            ]}
+          />
+
+          <MenuDeOpcoes
+            rotulo="Cidade"
+            valor={cidade}
+            aoEscolher={(valor) => { setCidade(valor); setPagina(1); }}
+            opcoes={[
+              { valor: TODAS, rotulo: "Todas as cidades" },
+              ...cidades.map((opcao) => ({
+                valor: opcao.id,
+                rotulo: opcao.nome,
+                detalhe: contarNaCidade(opcao.id),
+              })),
+            ]}
+          />
+
+          <MenuDeOpcoes
+            rotulo="Tipo"
+            valor={categoria}
+            aoEscolher={(valor) => { setCategoria(valor); setPagina(1); }}
+            opcoes={[
+              { valor: TODAS, rotulo: "Todos os tipos" },
+              ...categorias.map((opcao) => ({ valor: opcao.id, rotulo: opcao.nome })),
+            ]}
+          />
+
+          <Segmentado
+            rotulo="Quartos"
+            valor={quartosMinimos}
+            aoEscolher={(valor) => { setQuartosMinimos(valor); setPagina(1); }}
+            opcoes={[
+              { valor: 0, rotulo: "Qualquer" },
+              { valor: 1, rotulo: "1+" },
+              { valor: 2, rotulo: "2+" },
+              { valor: 3, rotulo: "3+" },
+              { valor: 4, rotulo: "4+" },
+            ]}
+          />
+
+          <Segmentado
+            rotulo="Vagas"
+            valor={vagasMinimas}
+            aoEscolher={(valor) => { setVagasMinimas(valor); setPagina(1); }}
+            opcoes={[
+              { valor: 0, rotulo: "Qualquer" },
+              { valor: 1, rotulo: "1+" },
+              { valor: 2, rotulo: "2+" },
+              { valor: 3, rotulo: "3+" },
+            ]}
+          />
+
+          {precoMaximo > 0 ? (
+            <FaixaDePreco
+              valor={teto}
+              minimo={precoMinimo}
+              maximo={precoMaximo}
+              aoMudar={(valor) => { setTetoDePreco(valor); setPagina(1); }}
+            />
+          ) : null}
+
+          <MenuDeOpcoes
+            rotulo="Ordenar"
+            valor={ordem}
+            aoEscolher={(valor) => setOrdem(valor as Ordem)}
+            larguraMinima="10rem"
+            opcoes={ORDENS.map((item) => ({ valor: item.valor, rotulo: item.rotulo }))}
+          />
+
+          <div className="ml-auto flex items-center gap-3 self-center">
+            <Segmentado
+              rotulo="Exibir"
+              valor={modo}
+              aoEscolher={(valor) => setModo(valor as ModoDeExibicao)}
+              opcoes={[
+                { valor: "grade", rotulo: "Grade" },
+                { valor: "lista", rotulo: "Lista" },
+              ]}
+            />
+            {filtrosAtivos ? (
+              <Botao variante="contorno" tamanho="compacto" onClick={limparFiltros}>
+                Limpar
+              </Botao>
+            ) : null}
+            <p className="text-sm text-tinta-fraca" aria-live="polite">
+              {situacao === "pronto"
+                ? `${visiveis.length} ${visiveis.length === 1 ? "resultado" : "resultados"}`
+                : ""}
+            </p>
           </div>
         </div>
-      </div>
 
-      <div className="w-full bg-[#F5F6F7]  flex items-center justify-center pt-16">
-        <Footer />
+        {situacao === "carregando" ? <EsqueletoDeCards /> : null}
+
+        {situacao === "erro" ? <AvisoDeErro mensagem={erro} aoTentarNovamente={carregar} /> : null}
+
+        {situacao === "pronto" ? (
+          <GradeDeImoveis
+            imoveis={daPagina}
+            modo={modo}
+            vazio={{
+              titulo: "Nenhum imóvel com esses filtros",
+              texto:
+                "Não encontramos imóveis para a combinação escolhida. Tente afrouxar um dos critérios.",
+              acao: (
+                <Botao variante="contorno" onClick={limparFiltros}>
+                  Limpar filtros
+                </Botao>
+              ),
+            }}
+          />
+        ) : null}
+
+        {situacao === "pronto" ? (
+          <Paginacao pagina={paginaAtual} totalDePaginas={totalDePaginas} aoTrocar={irPara} />
+        ) : null}
       </div>
     </main>
   );
