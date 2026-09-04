@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import Image from "next/image";
-import { getProperty } from "../lib/services/fake-api";
+import { getProperty } from "../lib/services/api-service";
 import Link from "next/link";
 import { IconBed, IconCar, IconHome, IconMapPin } from "@tabler/icons-react";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
@@ -153,7 +153,7 @@ export default function PropertiesList() {
                       </div>
                       <Link
                         className="uppercase text-[12px] z-10 px-4 py-2 text-gray-50 bg-orange-primary rounded-md font-medium"
-                        href={`http://localhost:3000/properties/${property.id}`}
+                        href={`http://localhost:2000/properties/${property.id}`}
                       >
                         Detalhes
                       </Link>
