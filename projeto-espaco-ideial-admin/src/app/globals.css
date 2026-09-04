@@ -10,3 +10,33 @@
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* Polegar do slider: o navegador não estiliza por classe, precisa do seletor. */
+.faixa-preco::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow:
+    0 1px 4px rgba(15, 19, 23, 0.3),
+    0 0 0 0.5px rgba(15, 19, 23, 0.1);
+  cursor: grab;
+}
+
+.faixa-preco::-webkit-slider-thumb:active {
+  cursor: grabbing;
+}
+
+.faixa-preco::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border: 0;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow:
+    0 1px 4px rgba(15, 19, 23, 0.3),
+    0 0 0 0.5px rgba(15, 19, 23, 0.1);
+  cursor: grab;
+}

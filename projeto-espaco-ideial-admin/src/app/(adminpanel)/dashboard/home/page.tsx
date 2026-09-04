@@ -1,181 +1,202 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Image from "next/image";
+import {
+  IconArrowRight,
+  IconCalendarEvent,
+  IconHome2,
+  IconUsers,
+} from "@tabler/icons-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
+import { Metricas, TopoDaPagina } from "@/components/painel/TopoDaPagina";
+import { Botao } from "@/components/ui/Botao";
+import { CarregandoPagina } from "@/components/ui/Carregando";
+import { listarAgendamentos, listarImoveis, listarUsuarios, type Agendamento } from "@/lib/services/api";
+import type { Imovel } from "@/lib/types/imovel";
+import { formatarBRL, partesDaData } from "@/lib/utils/formatters";
 
-import { onAuthStateChanged, signOut } from "firebase/auth";
-import { adminAuth } from "@/lib/services/firebase-admin-service";
-import { AnimatePresence, motion } from "framer-motion";
-import { IconBell, IconMenu, IconProgressX } from "@tabler/icons-react";
+type Situacao = "carregando" | "pronto" | "erro";
 
-import logo from "../../../../../public/images/logo-system.png";
-import userPanel from "../../../../../public/images/user_panel.png";
-import propertiesPanel from "../../../../../public/images/properties_panel.png";
-import schedulesPanel from "../../../../../public/images/schedule_panel.png";
-import Footer from "@/components/Footer";
+const SEM_IMOVEIS: Imovel[] = [];
+const SEM_AGENDAMENTOS: Agendamento[] = [];
 
-import { IconLogout } from "@tabler/icons-react";
+const ATALHOS = [
+  {
+    titulo: "Imóveis",
+    texto: "Cadastrar, editar e tirar do ar",
+    href: "/dashboard/properties",
+    icone: IconHome2,
+  },
+  {
+    titulo: "Agendamentos",
+    texto: "Ver as visitas marcadas",
+    href: "/dashboard/schedules",
+    icone: IconCalendarEvent,
+  },
+  {
+    titulo: "Usuários",
+    texto: "Contas criadas pelo site",
+    href: "/dashboard/users",
+    icone: IconUsers,
+  },
+];
 
-export default function Home() {
-  const [openMenu, setOpenMenu] = useState(false);
-  const router = useRouter();
+export default function PaginaInicialDoPainel() {
+  const [imoveis, setImoveis] = useState<Imovel[]>(SEM_IMOVEIS);
+  const [agendamentos, setAgendamentos] = useState<Agendamento[]>(SEM_AGENDAMENTOS);
+  const [usuarios, setUsuarios] = useState(0);
+  const [situacao, setSituacao] = useState<Situacao>("carregando");
+  const [erro, setErro] = useState("");
 
-  useEffect(() => {
-    verifyUser();
+  const carregar = useCallback(async () => {
+    setSituacao("carregando");
+
+    try {
+      const [lista, visitas, contas] = await Promise.all([
+        listarImoveis(),
+        listarAgendamentos(),
+        listarUsuarios(),
+      ]);
+      setImoveis(lista);
+      setAgendamentos(visitas);
+      setUsuarios(contas.length);
+      setSituacao("pronto");
+    } catch (falha) {
+      setErro(falha instanceof Error ? falha.message : "Erro ao carregar o painel.");
+      setSituacao("erro");
+    }
   }, []);
 
-  function verifyUser() {
-    onAuthStateChanged(adminAuth, async (user) => {
-      if (user) {
-        console.log("Usuário autenticado: ", user);
-      } else {
-        console.log("Usuário não autenticado ou sessão expirada.");
-        router.push("/");
-      }
-    });
-  }
+  useEffect(() => {
+    void carregar();
+  }, [carregar]);
 
-  function controllMenu() {
-    setOpenMenu((prevState) => !prevState);
-  }
+  const proximas = agendamentos
+    .filter((visita) => !partesDaData(visita.date).jaPassou)
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    .slice(0, 4);
 
-  function signOutUser() {
-    signOut(adminAuth)
-      .then(() => {
-        router.push("/");
-      })
-      .catch((error) => {
-        console.error("Erro ao sair:", error);
-      });
-  }
+  const semFoto = imoveis.filter((imovel) => !imovel.urlImagem).length;
 
   return (
-    <div className="w-full min-h-screen bg-gray-100 flex flex-col justify-start items-center">
-      <header className="w-full flex items-center justify-center py-2">
-        <div className="w-full max-w-[1200px] flex justify-between items-center border-b-2">
-          <Image src={logo} alt="..." width={1000} className="w-[200px]" />
-          <div className="flex items-center gap-4">
-            <button>
-              <IconBell size={24} color="#1b1b1b" />
-            </button>
-            <Image
-              src="https://images.unsplash.com/photo-1540066019607-e5f69323a8dc?q=80&w=1374&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-              width={500}
-              height={500}
-              className="w-[35px] h-[35px] object-cover rounded-full"
-              alt="..."
+    <>
+      <TopoDaPagina titulo="Visão geral" resumo="O que está acontecendo no sistema agora" />
+
+      <div className="px-6 py-5">
+        {situacao === "carregando" ? <CarregandoPagina rotulo="Carregando o painel" /> : null}
+
+        {situacao === "erro" ? (
+          <div role="alert" className="rounded-cartao border border-laranja/30 bg-laranja-fraco px-6 py-10 text-center">
+            <h2 className="font-display text-xl">Não conseguimos carregar o painel</h2>
+            <p className="mx-auto mt-2 max-w-[52ch] text-sm text-tinta-suave">{erro}</p>
+            <Botao className="mt-5" onClick={carregar}>
+              Tentar novamente
+            </Botao>
+          </div>
+        ) : null}
+
+        {situacao === "pronto" ? (
+          <>
+            <Metricas
+              itens={[
+                { valor: String(imoveis.length), rotulo: "imóveis no catálogo" },
+                {
+                  valor: String(proximas.length),
+                  rotulo: "visitas por vir",
+                  destaque: proximas.some((v) => partesDaData(v.date).ehHoje) ? "há visita hoje" : undefined,
+                },
+                { valor: String(usuarios), rotulo: "contas de clientes" },
+                {
+                  valor: imoveis.length
+                    ? formatarBRL(imoveis.reduce((soma, i) => soma + i.preco, 0) / imoveis.length)
+                    : formatarBRL(0),
+                  rotulo: "preço médio anunciado",
+                },
+              ]}
             />
-            <button
-              onClick={controllMenu}
-              className="hover:scale-110 transition ease-in-out"
-            >
-              <IconMenu size={24} color="#141414" />
-            </button>
-          </div>
-        </div>
-      </header>
-      <AnimatePresence>
-        {openMenu && (
-          <motion.aside
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "100%" }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="fixed right-0 top-0 z-50 w-72 h-full min-h-screen bg-white-secondary p-4 shadow-2xl flex flex-col items-end"
-          >
-            <div className="w-full flex items-center justify-between mb-8">
-              <span>Menu</span>
-              <button
-                onClick={controllMenu}
-                className="hover:scale-110 transition ease-in-out"
-              >
-                <IconProgressX size={24} color="#141414" />
-              </button>
-            </div>
-            <div className="w-full h-full  flex flex-col justify-between">
-              <div className="flex flex-col gap-2">
-                <ul className="w-full flex flex-col text-base text-custom-black gap-2">
-                  <li className="flex items-center justify-between w-full">
-                    <button
-                      onClick={signOutUser}
-                      className="text-red-500 flex items-center justify-between  w-full  hover:bg-gray-200 p-2 rounded-md"
+
+            <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
+              <section className="rounded-[12px] border border-areia-linha bg-white p-5">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <h2 className="font-display text-lg">Próximas visitas</h2>
+                  <Link
+                    href="/dashboard/schedules"
+                    className="flex items-center gap-1 text-[0.84rem] text-tinta-suave hover:text-laranja"
+                  >
+                    Ver todas <IconArrowRight size={15} stroke={1.8} />
+                  </Link>
+                </div>
+
+                {proximas.length === 0 ? (
+                  <p className="py-6 text-center text-sm text-tinta-fraca">
+                    Nenhuma visita marcada no momento.
+                  </p>
+                ) : (
+                  <ul className="grid gap-2">
+                    {proximas.map((visita) => {
+                      const data = partesDaData(visita.date);
+
+                      return (
+                        <li
+                          key={visita.id}
+                          className="flex items-center gap-3 rounded-lg bg-areia px-3 py-2.5"
+                        >
+                          <span className="w-11 shrink-0 text-center">
+                            <b className="block font-display text-lg leading-none">{data.dia}</b>
+                            <span className="text-[0.64rem] uppercase text-tinta-fraca">
+                              {data.mes}
+                            </span>
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <b className="block truncate text-[0.88rem]">{visita.userName}</b>
+                            <small className="block truncate text-[0.78rem] text-tinta-fraca">
+                              {visita.propertyAdress}
+                            </small>
+                          </span>
+                          <span className="shrink-0 text-[0.82rem] tabular-nums text-tinta-suave">
+                            {data.hora}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </section>
+
+              <section className="grid gap-3">
+                {ATALHOS.map((atalho) => {
+                  const Icone = atalho.icone;
+
+                  return (
+                    <Link
+                      key={atalho.href}
+                      href={atalho.href}
+                      className="flex items-center gap-3.5 rounded-[12px] border border-areia-linha bg-white px-5 py-4 transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-cartao"
                     >
-                      <IconLogout size={24} />
-                      <span>Sair</span>
-                    </button>
-                  </li>
-                </ul>
-              </div>
+                      <span className="grid size-10 shrink-0 place-items-center rounded-[10px] bg-areia text-tinta">
+                        <Icone size={20} stroke={1.8} />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <b className="block font-display text-base">{atalho.titulo}</b>
+                        <small className="block text-[0.82rem] text-tinta-fraca">{atalho.texto}</small>
+                      </span>
+                      <IconArrowRight size={17} stroke={1.8} className="shrink-0 text-tinta-fraca" />
+                    </Link>
+                  );
+                })}
+
+                {semFoto > 0 ? (
+                  <p className="rounded-[12px] border border-laranja/30 bg-laranja-fraco px-5 py-4 text-[0.86rem] text-tinta-suave">
+                    <b className="text-tinta">{semFoto}</b>{" "}
+                    {semFoto === 1 ? "imóvel está" : "imóveis estão"} sem foto — no site eles
+                    aparecem com o quadro vazio.
+                  </p>
+                ) : null}
+              </section>
             </div>
-          </motion.aside>
-        )}
-      </AnimatePresence>
-      <main className="w-full min-h-screen  max-w-[1200px] py-10">
-        <div className="flex flex-col gap-8">
-          <h1 className="text-2xl font-medium text-custom-black">
-            Garenciamento
-          </h1>
-          <div className="flex items-center gap-4">
-            <Link href={"/dashboard/users"}>
-              <div className="relative  w-[250px] h-[150px] rounded-md">
-                <Image
-                  src={userPanel}
-                  width={1000}
-                  alt="..."
-                  className="w-full h-full object-cover rounded-md"
-                />
-                <div className="flex flex-col justify-end p-4 absolute top-0 w-full h-full bg-[#00000050] rounded-md">
-                  <span className="text-sm text-gray-50 font-medium">
-                    Usuários
-                  </span>
-                  <span className="text-sm text-gray-50 font-light">
-                    Garenciar usuários
-                  </span>
-                </div>
-              </div>
-            </Link>
-            <Link href={"/dashboard/properties"}>
-              <div className="relative w-[250px] h-[150px] rounded-md">
-                <Image
-                  src={propertiesPanel}
-                  width={1000}
-                  alt="..."
-                  className="w-full h-full object-cover rounded-md"
-                />
-                <div className="flex flex-col justify-end p-4 absolute top-0 w-full h-full bg-[#00000050] rounded-md">
-                  <span className="text-sm text-gray-50 font-medium">
-                    Propriedades
-                  </span>
-                  <span className="text-sm text-gray-50 font-light">
-                    Garenciar Propriedades
-                  </span>
-                </div>
-              </div>
-            </Link>
-            <Link href={"/dashboard/schedules"}>
-              <div className="relative w-[250px] h-[150px] rounded-md">
-                <Image
-                  src={schedulesPanel}
-                  width={1000}
-                  alt="..."
-                  className="w-full h-full object-cover rounded-md"
-                />
-                <div className="flex flex-col justify-end p-4 absolute top-0 w-full h-full bg-[#00000050] rounded-md">
-                  <span className="text-sm text-gray-50 font-medium">
-                    Agendamentos
-                  </span>
-                  <span className="text-sm text-gray-50 font-light">
-                    Garenciar Agendamentos
-                  </span>
-                </div>
-              </div>
-            </Link>
-          </div>
-        </div>
-      </main>
-      <Footer />
-    </div>
+          </>
+        ) : null}
+      </div>
+    </>
   );
 }

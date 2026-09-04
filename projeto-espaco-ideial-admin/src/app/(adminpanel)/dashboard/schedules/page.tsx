@@ -1,234 +1,226 @@
 "use client";
 
-import Image from "next/image";
-import "react-loading-skeleton/dist/skeleton.css";
-import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { AnimatePresence, motion } from "framer-motion";
-import axios from "axios";
+import { IconCalendarOff, IconExternalLink, IconTrash } from "@tabler/icons-react";
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ConfirmarExclusao } from "@/components/painel/ConfirmarExclusao";
+import { Metricas, TopoDaPagina } from "@/components/painel/TopoDaPagina";
+import { Botao } from "@/components/ui/Botao";
+import { CarregandoPagina } from "@/components/ui/Carregando";
+import { Segmentado } from "@/components/ui/Segmentado";
+import { excluirAgendamento, listarAgendamentos, type Agendamento } from "@/lib/services/api";
+import { partesDaData } from "@/lib/utils/formatters";
 
-import { onAuthStateChanged, signOut } from "firebase/auth";
-import { adminAuth } from "@/lib/services/firebase-admin-service";
+type Situacao = "carregando" | "pronto" | "erro";
+type Recorte = "proximas" | "passadas" | "todas";
 
-import logo from "../../../../../public/images/logo-system.png";
+const SEM_AGENDAMENTOS: Agendamento[] = [];
 
-import {
-  IconBell,
-  IconLayoutList,
-  IconMenu,
-  IconProgressX,
-  IconLogout,
-  IconHome,
-} from "@tabler/icons-react";
+const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:2000";
 
-import Footer from "@/components/Footer";
-import { MenuItem } from "@/components/MenuItem";
+export default function PaginaDeAgendamentos() {
+  const [agendamentos, setAgendamentos] = useState<Agendamento[]>(SEM_AGENDAMENTOS);
+  const [situacao, setSituacao] = useState<Situacao>("carregando");
+  const [erro, setErro] = useState("");
+  const [recorte, setRecorte] = useState<Recorte>("proximas");
+  const [paraExcluir, setParaExcluir] = useState<Agendamento | null>(null);
+  const [excluindo, setExcluindo] = useState(false);
+  const [erroDaExclusao, setErroDaExclusao] = useState("");
 
-export interface ScheduleInterface {
-  id: number;
-  userName: string;
-  propertyId: number;
-  propertyAdress: string;
-  date: Date | string;
-}
+  const carregar = useCallback(async () => {
+    setSituacao("carregando");
 
-export default function Schedules() {
-  const [openMenu, setOpenMenu] = useState(false);
-  const router = useRouter();
-  const [, setStatusMessage] = useState("");
-  const [isLoading, setLoading] = useState(false);
-
-  const [schedules, setSchedules] = useState<ScheduleInterface[]>([]);
-
-  useEffect(() => {
-    verifyUser();
-    endLoading();
-    fetchSchedules();
+    try {
+      setAgendamentos(await listarAgendamentos());
+      setSituacao("pronto");
+    } catch (falha) {
+      setErro(falha instanceof Error ? falha.message : "Erro ao carregar as visitas.");
+      setSituacao("erro");
+    }
   }, []);
 
-  function endLoading() {
-    setTimeout(() => {
-      setLoading(true);
-    }, 2000);
-  }
+  useEffect(() => {
+    void carregar();
+  }, [carregar]);
 
-  function verifyUser() {
-    onAuthStateChanged(adminAuth, async (user) => {
-      if (user) {
-        console.log("Usuário autenticado: ", user);
-      } else {
-        console.log("Usuário não autenticado ou sessão expirada.");
-        router.push("/");
-      }
-    });
-  }
+  const ordenados = useMemo(
+    () => [...agendamentos].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
+    [agendamentos],
+  );
 
-  function signOutUser() {
-    signOut(adminAuth)
-      .then(() => {
-        router.push("/");
-      })
-      .catch((error) => {
-        console.error("Erro ao sair:", error);
-      });
-  }
+  const proximas = ordenados.filter((visita) => !partesDaData(visita.date).jaPassou);
+  const passadas = ordenados.filter((visita) => partesDaData(visita.date).jaPassou).reverse();
+  const deHoje = ordenados.filter((visita) => partesDaData(visita.date).ehHoje);
 
-  function controllMenu() {
-    setOpenMenu((prevState) => !prevState);
-  }
+  const visiveis = recorte === "proximas" ? proximas : recorte === "passadas" ? passadas : ordenados;
 
-  const fetchSchedules = async () => {
-    try {
-      const response = await axios.get("http://localhost:3002/schedules/all");
-      setSchedules(response.data);
-      setLoading(false);
-    } catch (err) {
-      setStatusMessage("Erro ao carregar dados");
-      setLoading(false);
-      console.error(err);
+  async function confirmarExclusao() {
+    if (!paraExcluir) {
+      return;
     }
-  };
 
-  const formatDate = (date: string | Date): string => {
-    const formattedDate = new Date(date);
-    return formattedDate
-      .toLocaleString("pt-BR", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-      })
-      .replace(",", "");
-  };
+    setExcluindo(true);
+    setErroDaExclusao("");
+
+    try {
+      await excluirAgendamento(paraExcluir.id);
+      setParaExcluir(null);
+      await carregar();
+    } catch (falha) {
+      setErroDaExclusao(falha instanceof Error ? falha.message : "Não foi possível excluir.");
+    } finally {
+      setExcluindo(false);
+    }
+  }
 
   return (
-    <div className="w-full min-h-screen bg-gray-100 flex flex-col justify-start items-center">
-      <header className="w-full flex items-center justify-center py-3">
-        <div className="w-full max-w-[1200px] flex justify-between items-center border-b-2">
-          <Image src={logo} alt="..." width={1000} className="w-[200px]" />
-          <div className="flex items-center gap-4">
-            <button>
-              <IconBell size={24} color="#1b1b1b" />
-            </button>
-            <Image
-              src="https://images.unsplash.com/photo-1540066019607-e5f69323a8dc?q=80&w=1374&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-              width={500}
-              height={500}
-              className="w-[35px] h-[35px] object-cover rounded-full"
-              alt="..."
-            />
-            <button
-              onClick={controllMenu}
-              className="hover:scale-110 transition ease-in-out"
-            >
-              <IconMenu size={24} color="#141414" />
-            </button>
-          </div>
-        </div>
-      </header>
-      <AnimatePresence>
-        {openMenu && (
-          <motion.aside
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "100%" }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="fixed right-0 top-0 z-50 w-72 h-full min-h-screen bg-white-secondary p-4 shadow-2xl flex flex-col items-end"
-          >
-            <div className="w-full flex items-center justify-between mb-8">
-              <span>Menu</span>
-              <button
-                onClick={controllMenu}
-                className="hover:scale-110 transition ease-in-out"
-              >
-                <IconProgressX size={24} color="#141414" />
-              </button>
-            </div>
-            <div className="w-full h-full  flex flex-col justify-between">
-              <div className="flex flex-col gap-2">
-                <ul className="w-full flex flex-col text-base text-custom-black gap-2">
-                  <MenuItem
-                    icon={IconHome}
-                    href="/dashboard/home"
-                    text="Início"
-                  />
-                  <li className="flex items-center justify-between w-full">
-                    <button
-                      onClick={signOutUser}
-                      className="text-red-500 flex items-center justify-between  w-full  hover:bg-gray-200 p-2 rounded-md"
-                    >
-                      <IconLogout size={24} />
-                      <span>Sair</span>
-                    </button>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </motion.aside>
-        )}
-      </AnimatePresence>
-      <main className="w-full max-w-[1200px] py-10 mb-32">
-        <div className="flex flex-col gap-8">
-          <h1 className="text-2xl font-medium text-custom-black">
-            Agendamentos
-          </h1>
-          <div className="flex items-center gap-4">
-            <button className="text-sm px-4 py-2 bg-blue-300 rounded-md text-white flex items-center gap-2">
-              <IconLayoutList size={22} />
-              <span>Visualizar</span>
-            </button>
-            <span className="text-sm px-4 py-2 text-custom-gray-light">
-              Total de agendamentos: {schedules.length}
-            </span>
-          </div>
+    <>
+      <TopoDaPagina
+        titulo="Agendamentos"
+        resumo={
+          situacao === "pronto"
+            ? `${proximas.length} ${proximas.length === 1 ? "visita marcada" : "visitas marcadas"}`
+            : "Carregando a agenda…"
+        }
+      />
 
-          {!isLoading ? (
-            <SkeletonTheme baseColor="#DDDDDD" highlightColor="#c0bebe">
-              <div className="w-full grid grid-cols-1  gap-4 p-8">
-                <div className="w-full flex flex-col gap-2">
-                  <Skeleton height={25} className="w-full" />
-                  <Skeleton height={25} className="w-full" />
-                  <Skeleton height={25} className="w-full" />
-                  <Skeleton height={25} className="w-full" />
-                </div>
+      <div className="px-6 py-5">
+        {situacao === "carregando" ? <CarregandoPagina rotulo="Carregando a agenda" /> : null}
+
+        {situacao === "erro" ? (
+          <div role="alert" className="rounded-cartao border border-laranja/30 bg-laranja-fraco px-6 py-10 text-center">
+            <h2 className="font-display text-xl">Não conseguimos carregar a agenda</h2>
+            <p className="mx-auto mt-2 max-w-[52ch] text-sm text-tinta-suave">{erro}</p>
+            <Botao className="mt-5" onClick={carregar}>
+              Tentar novamente
+            </Botao>
+          </div>
+        ) : null}
+
+        {situacao === "pronto" ? (
+          <>
+            <Metricas
+              itens={[
+                { valor: String(deHoje.length), rotulo: "visitas hoje" },
+                { valor: String(proximas.length), rotulo: "próximas visitas" },
+                { valor: String(passadas.length), rotulo: "já realizadas" },
+                { valor: String(agendamentos.length), rotulo: "total registrado" },
+              ]}
+            />
+
+            <div className="mb-4">
+              <Segmentado
+                rotulo="Mostrar"
+                valor={recorte}
+                aoEscolher={(valor) => setRecorte(valor as Recorte)}
+                opcoes={[
+                  { valor: "proximas", rotulo: `Próximas (${proximas.length})` },
+                  { valor: "passadas", rotulo: `Passadas (${passadas.length})` },
+                  { valor: "todas", rotulo: "Todas" },
+                ]}
+              />
+            </div>
+
+            {visiveis.length === 0 ? (
+              <div className="rounded-[12px] border border-dashed border-areia-linha bg-white px-6 py-14 text-center">
+                <span className="mx-auto grid size-12 place-items-center rounded-full bg-areia-escura text-tinta-fraca">
+                  <IconCalendarOff size={22} stroke={1.6} />
+                </span>
+                <h2 className="mt-4 font-display text-xl">
+                  {recorte === "proximas" ? "Nenhuma visita marcada" : "Nada por aqui"}
+                </h2>
+                <p className="mx-auto mt-2 max-w-[44ch] text-sm text-tinta-suave">
+                  {recorte === "proximas"
+                    ? "Quando alguém agendar uma visita pelo site, ela aparece aqui."
+                    : "Não há registros neste recorte."}
+                </p>
               </div>
-            </SkeletonTheme>
-          ) : (
-            <table className="w-full border-collapse min-w-[600px]">
-              <thead>
-                <tr className="bg-[#A6AEBF] text-white">
-                  <th className="px-4 py-2 text-left text-xs font-medium">
-                    Nome do Usuário
-                  </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium">
-                    Endereço da Propriedade
-                  </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium">
-                    Data
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {schedules.map((schedule, index) => (
-                  <tr key={index} className="border-b border-gray-200 w-full">
-                    <td className="px-4 py-1 text-xs">{schedule.userName}</td>
-                    <td className="px-4 py-1 text-xs">
-                      {schedule.propertyAdress}
-                    </td>
-                    <td className="px-4 py-1 text-xs">
-                      {formatDate(schedule.date)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </main>
-      <Footer />
-    </div>
+            ) : (
+              <ul className="grid gap-2.5">
+                {visiveis.map((visita) => {
+                  const data = partesDaData(visita.date);
+
+                  return (
+                    <li
+                      key={visita.id}
+                      className={[
+                        "flex items-center gap-4 rounded-[11px] border border-areia-linha bg-white px-4 py-3",
+                        data.ehHoje ? "shadow-[0_0_0_1px_theme(colors.laranja.DEFAULT)]" : "",
+                        data.jaPassou ? "opacity-70" : "",
+                      ].join(" ")}
+                    >
+                      <span className="w-14 shrink-0 text-center">
+                        <b className="block font-display text-2xl leading-none">{data.dia}</b>
+                        <span className="text-[0.68rem] uppercase tracking-[0.06em] text-tinta-fraca">
+                          {data.mes} · {data.diaDaSemana}
+                        </span>
+                      </span>
+
+                      <span
+                        aria-hidden
+                        className={[
+                          "w-[3px] self-stretch rounded-sm",
+                          data.ehHoje ? "bg-laranja" : "bg-tinta-fraca/40",
+                        ].join(" ")}
+                      />
+
+                      <span className="min-w-0 flex-1">
+                        <b className="block text-[0.92rem]">
+                          {visita.userName}
+                          {data.ehHoje ? (
+                            <span className="ml-2 text-[0.66rem] font-bold uppercase tracking-[0.08em] text-laranja">
+                              hoje
+                            </span>
+                          ) : null}
+                        </b>
+                        <small className="block truncate text-[0.8rem] text-tinta-fraca">
+                          {visita.propertyAdress}
+                        </small>
+                      </span>
+
+                      <span className="shrink-0 tabular-nums text-[0.86rem] text-tinta-suave">
+                        {data.hora}
+                      </span>
+
+                      <Link
+                        href={`${SITE}/properties/${visita.propertyId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="grid size-9 shrink-0 place-items-center rounded-lg text-tinta-fraca transition-colors hover:bg-areia-escura hover:text-tinta"
+                        aria-label="Abrir o imóvel no site"
+                      >
+                        <IconExternalLink size={17} stroke={1.8} />
+                      </Link>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setParaExcluir(visita);
+                          setErroDaExclusao("");
+                        }}
+                        aria-label={`Excluir a visita de ${visita.userName}`}
+                        className="grid size-9 shrink-0 cursor-pointer place-items-center rounded-lg text-tinta-fraca transition-colors hover:bg-[#FBEAE8] hover:text-[#C42B1C]"
+                      >
+                        <IconTrash size={17} stroke={1.8} />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </>
+        ) : null}
+      </div>
+
+      {paraExcluir ? (
+        <ConfirmarExclusao
+          descricao={`Visita de ${paraExcluir.userName} em ${partesDaData(paraExcluir.date).dia}/${partesDaData(paraExcluir.date).mes}`}
+          excluindo={excluindo}
+          erro={erroDaExclusao}
+          aoConfirmar={confirmarExclusao}
+          aoCancelar={() => setParaExcluir(null)}
+        />
+      ) : null}
+    </>
   );
 }
