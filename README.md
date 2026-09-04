@@ -1,142 +1,128 @@
-<H2>Documentação do projeto Espaço Ideal Imobiliária, site de compra e locação de propriedades </h2>
+<div align="center">
 
-<div align="left">
-  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/javascript/javascript-original.svg" height="40" alt="javascript logo"  />
-  <img width="12" />
-  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/typescript/typescript-original.svg" height="40" alt="typescript logo"  />
-  <img width="12" />
-  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/react/react-original.svg" height="40" alt="react logo"  />
-  <img width="12" />
-  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nextjs/nextjs-original.svg" height="40" alt="nextjs logo"  />
-  <img width="12" />
-  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nestjs/nestjs-original.svg" height="40" alt="nestjs logo"  />
-  <img width="12" />
-  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/postgresql/postgresql-original.svg" height="40" alt="postgresql logo"  />
+# Espaço Ideal Imobiliária
+
+**Compra e locação de imóveis** — site público, painel administrativo e API.
+Redesign completo e ambiente inteiro em container.
+
+![Next.js](https://img.shields.io/badge/Next.js-14-000?style=flat-square&logo=nextdotjs)
+![NestJS](https://img.shields.io/badge/NestJS-10-E0234E?style=flat-square&logo=nestjs)
+![Prisma](https://img.shields.io/badge/Prisma-5-2D3748?style=flat-square&logo=prisma)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat-square&logo=postgresql)
+![Docker](https://img.shields.io/badge/Docker-compose-2496ED?style=flat-square&logo=docker)
+
 </div>
 
-###
+![Landing](./docs/prints/01-landing.webp)
 
-<h3>Histórico de Alterações*</h3>
+## Rodando
 
-##
+Precisa apenas de Docker. Nada de Node, Postgres ou Prisma na máquina.
 
-<table border="1" cellspacing="0" cellpadding="8">
-  <thead>
-    <tr>
-      <th>Data</th>
-      <th>Versão</th>
-      <th>Descrição</th>
-      <th>Autor</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>10/09/2024</td>
-      <td>1.0</td>
-      <td>Criação Inicial</td>
-      <td>Time Completo</td>
-    </tr>
-    <tr>
-      <td>12/09/2024</td>
-      <td>1.1</td>
-      <td>Criação do Protótipo</td>
-      <td>João Marcos</td>
-    </tr>
-    <tr>
-      <td>19/09/2024</td>
-      <td>1.2</td>
-      <td>Início da Criação das Telas</td>
-      <td>João Marcos</td>
-    </tr>
-    <tr>
-      <td>24/09/2024</td>
-      <td>1.3</td>
-      <td>Criação da Estrutura do Banco</td>
-      <td>Pedro Henrique</td>
-    </tr>
-    <tr>
-      <td>25/09/2024</td>
-      <td>1.4</td>
-      <td>Especificação dos requisitos</td>
-      <td>Time Completo</td>
-    </tr>
-    <tr>
-      <td>05/10/2024</td>
-      <td>1.5</td>
-      <td>Revisão do documento</td>
-      <td>Matheus Fontes</td>
-    </tr>
-    <tr>
-      <td>10/10/2024</td>
-      <td>1.6</td>
-      <td>Especificação das funcionalidades do sistema</td>
-      <td>Time Completo</td>
-    </tr>
-    <tr>
-      <td>28/10/2024</td>
-      <td>1.7</td>
-      <td>Desenvolvimento das Funcionalidades</td>
-      <td>Pedro Henrique</td>
-    </tr>
-    <tr>
-      <td>30/10/2024</td>
-      <td>1.8</td>
-      <td>Finalização das Telas</td>
-      <td>João Marcos</td>
-    </tr>
-    <tr>
-      <td>05/11/2024</td>
-      <td>1.9</td>
-      <td>Criação dos Endpoints</td>
-      <td>João Marcos</td>
-    </tr>
-    <tr>
-      <td>25/11/2024</td>
-      <td>2.0</td>
-      <td>Finalização das Funcionalidades</td>
-      <td>Pedro Henrique / João Marcos</td>
-    </tr>
-    <tr>
-      <td>25/11/2024</td>
-      <td>2.1</td>
-      <td>Teste das Funcionalidades e Endpoints</td>
-      <td>João Marcos</td>
-    </tr>
-    <tr>
-      <td>26/11/2024</td>
-      <td>2.2</td>
-      <td>Integração do Banco de Dados</td>
-      <td>Pedro Henrique / João Marcos</td>
-    </tr>
-    <tr>
-      <td>28/11/2024</td>
-      <td>2.3</td>
-      <td>Revisão do Documento</td>
-      <td>Matheus Fontes</td>
-    </tr>
-     <tr>
-      <td>01/05/2025</td>
-      <td>3.0</td>
-      <td>Nova revisão do Documento</td>
-      <td>Pedro Henrique / João Marcos</td>
-    </tr>
-       <tr>
-      <td>01/05/2025</td>
-      <td>3.1</td>
-      <td>Update das bibliotecas e dependências</td>
-      <td>João Marcos</td>
-    </tr>
-  </tbody>
-</table>
+```bash
+cp .env.example .env    # preencha as chaves do Firebase
+docker compose up -d
+```
 
-###
+| Serviço | Endereço              | O que é                        |
+| ------- | --------------------- | ------------------------------ |
+| Site    | http://localhost:2000 | Next 14 — vitrine de imóveis   |
+| Painel  | http://localhost:2001 | Next 14 — administração        |
+| API     | http://localhost:2002 | NestJS + Prisma                |
+| Banco   | localhost:2005        | PostgreSQL 16                  |
 
-<h3>Descrição geral do sistema</h3>
-<p>O sistema <strong>Espaço Ideal Imobiliária</strong> é uma plataforma digital projetada para facilitar a compra, venda e aluguel de imóveis através da internet.
+Na primeira subida o backend aplica as migrations e roda o seed sozinho:
+12 cidades, 8 categorias, 2 transações e 28 imóveis de exemplo. O seed é
+idempotente — rodar de novo não duplica, e atualiza a foto de quem já existe.
 
-Os clientes poderão realizar a <strong>busca por imóveis de forma simples e rápida</strong>, informando critérios como localização, tipo de imóvel entre outras características. Para acessar e utilizar todas as funcionalidades do sistema, o cliente deverá criar uma conta, fornecendo suas informações pessoais. Caso já tenha um cadastro, o cliente poderá fazer login utilizando seu nome de usuário e senha para acessar suas informações e realizar transações.
+O código dos três projetos é montado do host, então editar um arquivo recarrega
+o serviço. Detalhes de operação em [COMO-RODAR.md](./COMO-RODAR.md).
 
-Após encontrar o imóvel que atende às suas necessidades, o cliente poderá visualizar detalhes completos e entrar em contato para realizar uma proposta ou agendar uma visita.
-Os administradores são responsáveis pela gestão de imóveis, controle de clientes e transações, e podem cadastrar novos imóveis, atualizar informações e gerenciar as atividades da plataforma. Somente administradores devidamente cadastrados terão acesso a essas funções.
-</p>
+## O site
 
+### Landing com globo das praças
+
+A rota `/` apresenta a imobiliária. O globo é [COBE](https://github.com/shuding/cobe)
+(5 KB, sem Three.js) e carrega dado real: cada marcador é uma cidade do
+catálogo, com a contagem vinda do banco.
+
+### Catálogo
+
+![Imóveis](./docs/prints/02-imoveis.webp)
+
+Busca por cidade, tipo, negócio, quartos, vagas e faixa de preço — que se ajusta
+ao catálogo, em vez de oferecer um teto inventado. Alterna entre grade e lista
+compacta, com paginação de 8.
+
+Os controles são próprios, no vocabulário do macOS: o `<select>` nativo muda de
+cara em cada sistema e não aceita ícone nem contagem por opção.
+
+### Detalhe e agendamento
+
+![Detalhe](./docs/prints/03-detalhe.webp)
+
+Ficha técnica com valor do m² calculado e agendamento de visita que grava no
+banco. Toda tela tem carregamento, erro fiel ao backend e estado vazio que
+explica o motivo.
+
+### Entrar e criar conta
+
+![Login](./docs/prints/04-login.webp)
+
+Erros do Firebase traduzidos para português — nada de `auth/invalid-credential`
+na cara do usuário.
+
+## O painel
+
+![Painel](./docs/prints/05-painel-imoveis.webp)
+
+Lateral fixa com contagem por seção. A tabela mostra foto, título legível e
+preço formatado; busca por endereço, referência ou cidade; filtros e paginação.
+
+O cadastro abre em painel lateral, com máscara de moeda no preço e a lista
+visível atrás. Excluir nomeia o registro e pede confirmação.
+
+![Visão geral](./docs/prints/06-painel-home.webp)
+
+Agendamentos vêm agrupados por dia, com as visitas de hoje em destaque e link
+direto para o imóvel no site.
+
+## Estrutura
+
+```
+projeto-espaco-ideal-backend/    NestJS + Prisma + PostgreSQL
+projeto-espaco-ideial-frontend/  Next 14 — site público
+projeto-espaco-ideial-admin/     Next 14 — painel administrativo
+docker-compose.yml               banco, API, site e painel
+```
+
+A API tem seis módulos com CRUD fechado: `properties`, `cities`, `categories`,
+`transactions`, `users` e `schedules`. O imóvel referencia cidade, categoria e
+transação, e as relações vêm incluídas na resposta — sem isso a tela recebe só
+ids e não consegue distinguir preço de venda de valor de aluguel.
+
+## Configuração
+
+Tudo o que varia por ambiente está no `.env` (veja `.env.example`): portas,
+banco e as duas configurações do Firebase — uma para o projeto dos clientes,
+outra para o dos administradores.
+
+> **Sobre as chaves do Firebase:** a chave web é pública por natureza. Ela vai
+> para o bundle do navegador, e qualquer visitante consegue lê-la. Tirá-la do
+> código organiza o projeto, mas não é medida de segurança. Quem protege os
+> dados são as **regras de segurança** do Firestore e do Storage, os **domínios
+> autorizados** no Firebase Auth e a **restrição de referenciador** da chave no
+> Google Cloud Console.
+
+## Autor
+
+**João Marcos** — Frontend & UI/UX
+
+[Portfólio](https://softwaredeveloper-jmmsp.vercel.app/) ·
+[GitHub](https://github.com/Joaommsp) ·
+[LinkedIn](https://www.linkedin.com/in/joaomarcos10oficial/)
+
+## Licença
+
+Projeto acadêmico e de portfólio. Imóveis, preços e praças internacionais são
+fictícios; as fotos foram geradas por IA.
