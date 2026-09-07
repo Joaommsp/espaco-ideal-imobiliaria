@@ -13,8 +13,6 @@ export interface Praca {
   imagem?: string;
   /** [latitude, longitude] */
   coordenada: [number, number];
-  /** Onde o balão aparece sobre o globo, em porcentagem da caixa. */
-  balao?: { x: string; y: string };
 }
 
 /**
@@ -47,14 +45,12 @@ export const PRACAS_INTERNACIONAIS: Praca[] = [
     pais: "Portugal",
     imoveis: 18,
     coordenada: [38.72, -9.14],
-    balao: { x: "16%", y: "26%" },
   },
   {
     nome: "Miami",
     pais: "Estados Unidos",
     imoveis: 7,
     coordenada: [25.76, -80.19],
-    balao: { x: "72%", y: "34%" },
   },
 ];
 

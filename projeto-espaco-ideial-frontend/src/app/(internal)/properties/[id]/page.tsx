@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { IconArrowLeft } from "@tabler/icons-react";
 import { useCallback, useEffect, useState } from "react";
 import { AgendarVisita } from "@/components/imoveis/AgendarVisita";
 import { AvisoDeErro } from "@/components/imoveis/AvisoDeErro";
@@ -88,7 +89,17 @@ export default function PaginaDoImovel({ params }: { params: { id: string } }) {
   return (
     <main className="min-h-dvh bg-areia pb-16">
       <div className="mx-auto max-w-[1180px] px-6 pt-8">
-        <nav aria-label="Você está aqui" className="text-sm text-tinta-fraca">
+        {/* Link, não history.back(): quem chega pelo link compartilhado não tem
+            para onde voltar, e o botão precisa levar a algum lugar sempre. */}
+        <Link
+          href="/properties"
+          className="inline-flex items-center gap-1.5 rounded-full py-1.5 pr-3 text-sm font-medium text-tinta-suave transition-colors hover:text-laranja"
+        >
+          <IconArrowLeft size={18} aria-hidden />
+          Voltar aos imóveis
+        </Link>
+
+        <nav aria-label="Você está aqui" className="mt-3 text-sm text-tinta-fraca">
           <Link href="/" className="hover:text-laranja">
             Início
           </Link>
