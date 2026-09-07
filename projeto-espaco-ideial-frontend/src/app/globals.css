@@ -102,7 +102,10 @@
   color: theme(colors.tinta.suave);
 }
 
-.balao-praca a {
+/* A folha do Leaflet pinta todo `a` do mapa de #0078A8 e é carregada depois
+   desta, com a mesma especificidade. Daí o seletor mais longo: sem ele o texto
+   do botão fica azul sobre o grafite, em 2,3:1 de contraste. */
+.mapa-pracas .balao-praca a {
   display: inline-flex;
   margin-top: 10px;
   border-radius: 999px;
@@ -115,8 +118,30 @@
   transition: background-color 150ms;
 }
 
-.balao-praca a:hover {
+.mapa-pracas .balao-praca a:hover,
+.mapa-pracas .balao-praca a:focus-visible {
   background: theme(colors.laranja.DEFAULT);
+  color: theme(colors.white);
+}
+
+/* Mesma disputa, nos dois outros lugares em que o azul do Leaflet aparece. */
+.mapa-pracas .leaflet-control-attribution a {
+  color: theme(colors.tinta.suave);
+}
+
+.mapa-pracas .leaflet-control-attribution a:hover {
+  color: theme(colors.laranja.escuro);
+}
+
+/* `tinta-fraca` seria coerente com um ícone secundário, mas dá 4,2:1 sobre o
+   branco — abaixo do mínimo. `tinta-suave` mantém a hierarquia e chega a 7,6. */
+.mapa-pracas .leaflet-popup a.leaflet-popup-close-button {
+  color: theme(colors.tinta.suave);
+}
+
+.mapa-pracas .leaflet-popup a.leaflet-popup-close-button:hover,
+.mapa-pracas .leaflet-popup a.leaflet-popup-close-button:focus {
+  color: theme(colors.tinta.DEFAULT);
 }
 
 @media (prefers-reduced-motion: reduce) {
