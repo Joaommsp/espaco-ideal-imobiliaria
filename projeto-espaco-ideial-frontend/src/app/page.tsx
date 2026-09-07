@@ -8,6 +8,7 @@ import { AvisoDeErro } from "@/components/imoveis/AvisoDeErro";
 import { BotaoLink } from "@/components/ui/Botao";
 import { CardDeImovel } from "@/components/ui/CardDeImovel";
 import { ANOS_DE_MERCADO, AVALIACAO_MEDIA, TOTAL_DE_CIDADES, TOTAL_DE_IMOVEIS } from "@/data/atuacao";
+import { CONTATO } from "@/data/contato";
 import { montarPracas } from "@/lib/utils/pracas";
 import {
   listarCategorias,
@@ -247,7 +248,7 @@ export default async function PaginaInicial() {
                   Anuncie com quem já atende {TOTAL_DE_CIDADES} praças.
                 </p>
               </div>
-              <BotaoLink href="/register" tamanho="grande">
+              <BotaoLink href={CONTATO.whatsapp} externo tamanho="grande">
                 Anunciar meu imóvel
               </BotaoLink>
             </div>

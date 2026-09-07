@@ -2,63 +2,41 @@
 
 import { useState } from "react";
 import { Botao } from "@/components/ui/Botao";
+import { CampoDeTexto } from "@/components/ui/CampoDeTexto";
 import { agendarVisita } from "@/lib/services/imoveis";
-import { formatarTelefone, telefoneValido } from "@/lib/utils/telefone";
+import {
+  hoje,
+  paraDataLocal,
+  temProblema,
+  validarAgendamento,
+  type ProblemasDoAgendamento,
+} from "@/lib/utils/agendamento";
+import { formatarTelefone } from "@/lib/utils/telefone";
 
 type Situacao = "parado" | "enviando" | "feito" | "erro";
 
-/**
- * Data mínima é hoje — em horário local. Com toISOString() o valor vira UTC:
- * depois das 21h em Brasília o "hoje" já virava amanhã e a pessoa não
- * conseguia marcar para o próprio dia.
- */
-function hoje(): string {
-  const agora = new Date();
-  return [
-    agora.getFullYear(),
-    String(agora.getMonth() + 1).padStart(2, "0"),
-    String(agora.getDate()).padStart(2, "0"),
-  ].join("-");
-}
-
-/**
- * O <input type="date"> devolve "2026-09-10", que o construtor Date lê como
- * meia-noite UTC — em Brasília isso é dia 9 às 21h, e era esse dia que ia
- * parar no registro. Montando em horário local, a data é a escolhida.
- */
-function paraDataLocal(valor: string): Date {
-  const [ano, mes, dia] = valor.split("-").map(Number);
-  return new Date(ano, mes - 1, dia, 12, 0, 0);
-}
-
-/**
- * Sem conta de usuário, o nome precisa vir do próprio formulário — antes ele
- * saía da sessão. O telefone é opcional: quem prefere ser chamado por e-mail
- * não deveria travar no campo.
- */
-export function primeiroProblema(
-  nome: string,
-  telefone: string,
-  data: string,
-): string | null {
-  if (!nome.trim()) return "Diga seu nome para o corretor saber quem procurar.";
-  if (!data) return "Escolha o dia da visita.";
-  if (telefone && !telefoneValido(telefone)) {
-    return "O WhatsApp precisa ter DDD e número completo.";
-  }
-  return null;
-}
+const SEM_PROBLEMAS: ProblemasDoAgendamento = {};
 
 export function AgendarVisita({ imovelId, endereco }: { imovelId: number; endereco: string }) {
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
   const [data, setData] = useState("");
+  const [problemas, setProblemas] = useState<ProblemasDoAgendamento>(SEM_PROBLEMAS);
   const [situacao, setSituacao] = useState<Situacao>("parado");
   const [erro, setErro] = useState("");
 
   const enviando = situacao === "enviando";
 
-  function aoEditar() {
+  /** Corrigir o campo apaga o aviso dele, sem esperar um novo envio. */
+  function aoEditar(campo: keyof ProblemasDoAgendamento) {
+    setProblemas((atuais) => {
+      if (!atuais[campo]) return atuais;
+
+      const restantes = { ...atuais };
+      delete restantes[campo];
+      return restantes;
+    });
+
     if (situacao === "erro") {
       setSituacao("parado");
       setErro("");
@@ -66,14 +44,14 @@ export function AgendarVisita({ imovelId, endereco }: { imovelId: number; endere
   }
 
   async function enviar() {
-    const problema = primeiroProblema(nome, telefone, data);
+    const encontrados = validarAgendamento(nome, telefone, data);
 
-    if (problema) {
-      setErro(problema);
-      setSituacao("erro");
+    if (temProblema(encontrados)) {
+      setProblemas(encontrados);
       return;
     }
 
+    setProblemas(SEM_PROBLEMAS);
     setSituacao("enviando");
     setErro("");
 
@@ -81,8 +59,8 @@ export function AgendarVisita({ imovelId, endereco }: { imovelId: number; endere
       await agendarVisita({
         nome: nome.trim(),
         telefone,
-        enderecoPropriedade: endereco,
-        propertyId: imovelId,
+        enderecoDoImovel: endereco,
+        imovelId,
         data: paraDataLocal(data).toISOString(),
       });
       setSituacao("feito");
@@ -116,6 +94,7 @@ export function AgendarVisita({ imovelId, endereco }: { imovelId: number; endere
 
   return (
     <form
+      noValidate
       className="rounded-cartao border border-areia-linha bg-white p-5"
       onSubmit={(evento) => {
         evento.preventDefault();
@@ -127,58 +106,55 @@ export function AgendarVisita({ imovelId, endereco }: { imovelId: number; endere
         Escolha o dia e um corretor da praça acompanha você no imóvel.
       </p>
 
-      <label className="mt-4 block">
-        <span className={ROTULO}>Seu nome</span>
-        <input
+      <div className="mt-4 flex flex-col gap-3">
+        <CampoDeTexto
+          rotulo="Seu nome"
           type="text"
           value={nome}
           autoComplete="name"
           placeholder="Como podemos chamar você"
+          erro={problemas.nome}
+          disabled={enviando}
           onChange={(evento) => {
             setNome(evento.target.value);
-            aoEditar();
+            aoEditar("nome");
           }}
-          disabled={enviando}
-          className={CAMPO}
         />
-      </label>
 
-      <label className="mt-3 block">
-        <span className={ROTULO}>WhatsApp (opcional)</span>
-        <input
+        <CampoDeTexto
+          rotulo="WhatsApp (opcional)"
           type="tel"
           inputMode="numeric"
           value={telefone}
           autoComplete="tel"
           placeholder="(75) 99812-4407"
+          erro={problemas.telefone}
+          disabled={enviando}
           onChange={(evento) => {
             setTelefone(formatarTelefone(evento.target.value));
-            aoEditar();
+            aoEditar("telefone");
           }}
-          disabled={enviando}
-          className={CAMPO}
         />
-      </label>
 
-      <label className="mt-3 block">
-        <span className={ROTULO}>Dia da visita</span>
-        <input
+        <CampoDeTexto
+          rotulo="Dia da visita"
           type="date"
           value={data}
           min={hoje()}
+          erro={problemas.data}
+          disabled={enviando}
           onChange={(evento) => {
             setData(evento.target.value);
-            aoEditar();
+            aoEditar("data");
           }}
-          disabled={enviando}
-          className={CAMPO}
         />
-      </label>
+      </div>
 
       <Botao type="submit" variante="grafite" className="mt-4 w-full" disabled={enviando}>
         {enviando ? "Registrando…" : "Quero visitar"}
       </Botao>
 
+      {/* Falha do envio, não de preenchimento: essa fica no rodapé do form. */}
       {situacao === "erro" ? (
         <p role="alert" className="mt-3 animate-surgir text-sm font-medium text-laranja-escuro">
           {erro}
@@ -187,8 +163,3 @@ export function AgendarVisita({ imovelId, endereco }: { imovelId: number; endere
     </form>
   );
 }
-
-const ROTULO = "text-[0.7rem] font-bold uppercase tracking-[0.1em] text-tinta-fraca";
-
-const CAMPO =
-  "mt-1 w-full rounded-lg border border-areia-linha bg-areia px-3 py-2.5 text-tinta outline-none transition-colors placeholder:text-tinta-fraca focus:border-laranja disabled:opacity-60";

@@ -21,12 +21,19 @@ function responder<T>(dados: T): Promise<T> {
 }
 
 /**
- * Cópia antes de entregar: as telas guardam a lista em estado e ordenam em
- * cima dela. Sem isto, um `sort` numa página reordenaria o catálogo para todas
- * as outras, porque é o mesmo array do módulo.
+ * Cópia antes de entregar. Reordenar nunca foi o risco — `.map()` já devolve
+ * array novo. O risco é a tela mutar um imóvel: sem isto ela estaria editando
+ * o objeto do módulo, e a alteração apareceria em todas as outras páginas.
+ *
+ * As relações vão junto, senão a proteção pararia no primeiro nível.
  */
 function copiar(imovel: Imovel): Imovel {
-  return { ...imovel };
+  return {
+    ...imovel,
+    city: imovel.city && { ...imovel.city },
+    category: imovel.category && { ...imovel.category },
+    transacao: imovel.transacao && { ...imovel.transacao },
+  };
 }
 
 export function listarImoveis(): Promise<Imovel[]> {
@@ -83,11 +90,18 @@ export function buscarImoveis(filtros: FiltrosDeBusca): Promise<Imovel[]> {
   return responder(resultado.map(copiar));
 }
 
+/**
+ * Este contrato é interno e divergiu do backend de propósito — antes ele
+ * espelhava o corpo do POST. Quem for religar a API precisa saber que o
+ * `CreateScheduleDto` do NestJS espera `nomeUsuario`, `enderecoPropriedade`,
+ * `propertyId` e `date`, e que **o `model Schedule` não tem coluna de
+ * telefone**: o campo abaixo exige migration, não só renomear.
+ */
 export interface NovoAgendamento {
   nome: string;
   telefone: string;
-  enderecoPropriedade: string;
-  propertyId: number;
+  enderecoDoImovel: string;
+  imovelId: number;
   /** ISO 8601 — a data escolhida, montada em horário local. */
   data: string;
 }

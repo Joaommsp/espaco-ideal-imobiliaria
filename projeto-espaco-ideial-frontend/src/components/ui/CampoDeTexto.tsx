@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState, type ComponentPropsWithoutRef } from "react";
+import { MICRO_ROTULO } from "@/lib/utils/estilos";
 
 interface CampoDeTextoProps
   extends Omit<ComponentPropsWithoutRef<"input">, "className" | "id"> {
@@ -19,7 +20,7 @@ export function CampoDeTexto({ rotulo, erro, dica, ...props }: CampoDeTextoProps
 
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-[0.72rem] font-bold uppercase tracking-[0.1em] text-tinta-fraca">
+      <label htmlFor={id} className={MICRO_ROTULO}>
         {rotulo}
       </label>
       <input
@@ -50,7 +51,7 @@ export function CampoDeSenha({ rotulo, erro, dica, ...props }: CampoDeTextoProps
 
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-[0.72rem] font-bold uppercase tracking-[0.1em] text-tinta-fraca">
+      <label htmlFor={id} className={MICRO_ROTULO}>
         {rotulo}
       </label>
       <div className="relative">

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { IMOVEIS } from "@/lib/mocks/catalogo";
 import {
   agendarVisita,
@@ -10,28 +10,59 @@ import {
   listarTransacoes,
 } from "./imoveis";
 
+/**
+ * O serviço espera de propósito, para que o esqueleto das telas apareça. Aqui
+ * esse tempo é só espera: com relógio falso a suíte deixa de gastar segundos
+ * por causa de uma decisão de interface.
+ */
+beforeEach(() => {
+  vi.useFakeTimers();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+/** Adianta os timers pendentes e devolve o valor já resolvido. */
+async function resolver<T>(promessa: Promise<T>): Promise<T> {
+  await vi.runAllTimersAsync();
+  return promessa;
+}
+
 describe("listarImoveis", () => {
   it("entrega o catálogo inteiro", async () => {
-    await expect(listarImoveis()).resolves.toHaveLength(28);
+    await expect(resolver(listarImoveis())).resolves.toHaveLength(28);
   });
 
-  it("entrega cópias — ordenar numa tela não pode bagunçar as outras", async () => {
-    const lista = await listarImoveis();
+  it("entrega cópias — mutar numa tela não pode vazar para as outras", async () => {
+    const lista = await resolver(listarImoveis());
     const precoOriginal = IMOVEIS[0].preco;
 
     lista[0].preco = -1;
 
     expect(IMOVEIS[0].preco).toBe(precoOriginal);
   });
+
+  it("copia também as relações, senão a proteção para no primeiro nível", async () => {
+    const lista = await resolver(listarImoveis());
+    const cidadeOriginal = IMOVEIS[0].city?.nomeCidade;
+
+    lista[0].city!.nomeCidade = "Cidade Inventada";
+
+    expect(IMOVEIS[0].city?.nomeCidade).toBe(cidadeOriginal);
+  });
 });
 
 describe("buscarImovel", () => {
   it("acha pelo id", async () => {
-    await expect(buscarImovel(9)).resolves.toMatchObject({ id: 9, registro: "EI-1009" });
+    await expect(resolver(buscarImovel(9))).resolves.toMatchObject({
+      id: 9,
+      registro: "EI-1009",
+    });
   });
 
   it("aceita o id como texto, que é como a rota entrega", async () => {
-    await expect(buscarImovel("9")).resolves.toMatchObject({ registro: "EI-1009" });
+    await expect(resolver(buscarImovel("9"))).resolves.toMatchObject({ registro: "EI-1009" });
   });
 
   it("recusa id que não existe, dizendo qual era", async () => {
@@ -51,13 +82,15 @@ describe("buscarImoveis", () => {
   it("exige que os cinco filtros batam ao mesmo tempo", async () => {
     const alvo = IMOVEIS[0];
 
-    const resultado = await buscarImoveis({
-      transacaoId: alvo.transacaoId,
-      cityId: alvo.cityId,
-      categoryId: alvo.categoryId,
-      qtdQuartos: alvo.qtdQuartos,
-      qtdVagasGaragem: alvo.qtdVagasGaragem,
-    });
+    const resultado = await resolver(
+      buscarImoveis({
+        transacaoId: alvo.transacaoId,
+        cityId: alvo.cityId,
+        categoryId: alvo.categoryId,
+        qtdQuartos: alvo.qtdQuartos,
+        qtdVagasGaragem: alvo.qtdVagasGaragem,
+      }),
+    );
 
     expect(resultado.map((imovel) => imovel.registro)).toContain(alvo.registro);
 
@@ -73,13 +106,15 @@ describe("buscarImoveis", () => {
   it("descarta quem casa em quatro filtros e falha no quinto", async () => {
     const alvo = IMOVEIS[0];
 
-    const resultado = await buscarImoveis({
-      transacaoId: alvo.transacaoId,
-      cityId: alvo.cityId,
-      categoryId: alvo.categoryId,
-      qtdQuartos: alvo.qtdQuartos,
-      qtdVagasGaragem: alvo.qtdVagasGaragem + 7,
-    });
+    const resultado = await resolver(
+      buscarImoveis({
+        transacaoId: alvo.transacaoId,
+        cityId: alvo.cityId,
+        categoryId: alvo.categoryId,
+        qtdQuartos: alvo.qtdQuartos,
+        qtdVagasGaragem: alvo.qtdVagasGaragem + 7,
+      }),
+    );
 
     expect(resultado).toEqual([]);
   });
@@ -87,37 +122,39 @@ describe("buscarImoveis", () => {
   it("compara por valor mesmo recebendo texto da rota", async () => {
     const alvo = IMOVEIS[0];
 
-    const comTexto = await buscarImoveis({
-      transacaoId: String(alvo.transacaoId),
-      cityId: String(alvo.cityId),
-      categoryId: String(alvo.categoryId),
-      qtdQuartos: String(alvo.qtdQuartos),
-      qtdVagasGaragem: String(alvo.qtdVagasGaragem),
-    });
+    const comTexto = await resolver(
+      buscarImoveis({
+        transacaoId: String(alvo.transacaoId),
+        cityId: String(alvo.cityId),
+        categoryId: String(alvo.categoryId),
+        qtdQuartos: String(alvo.qtdQuartos),
+        qtdVagasGaragem: String(alvo.qtdVagasGaragem),
+      }),
+    );
 
     expect(comTexto.length).toBeGreaterThan(0);
   });
 
   it("devolve lista vazia quando nada casa, sem lançar", async () => {
     await expect(
-      buscarImoveis({
-        transacaoId: 1,
-        cityId: 1,
-        categoryId: 1,
-        qtdQuartos: 99,
-        qtdVagasGaragem: 99,
-      }),
+      resolver(
+        buscarImoveis({
+          transacaoId: 1,
+          cityId: 1,
+          categoryId: 1,
+          qtdQuartos: 99,
+          qtdVagasGaragem: 99,
+        }),
+      ),
     ).resolves.toEqual([]);
   });
 });
 
 describe("opções dos filtros", () => {
   it("devolve id e nome, que é o formato que os menus consomem", async () => {
-    const [cidades, categorias, transacoes] = await Promise.all([
-      listarCidades(),
-      listarCategorias(),
-      listarTransacoes(),
-    ]);
+    const [cidades, categorias, transacoes] = await resolver(
+      Promise.all([listarCidades(), listarCategorias(), listarTransacoes()]),
+    );
 
     expect(cidades).toHaveLength(12);
     expect(categorias).toHaveLength(8);
@@ -137,11 +174,11 @@ describe("agendarVisita", () => {
     const pedido = {
       nome: "Marina Cardoso",
       telefone: "(75) 99812-4407",
-      enderecoPropriedade: IMOVEIS[0].endereco,
-      propertyId: IMOVEIS[0].id,
+      enderecoDoImovel: IMOVEIS[0].endereco,
+      imovelId: IMOVEIS[0].id,
       data: new Date(2026, 8, 12, 12).toISOString(),
     };
 
-    await expect(agendarVisita(pedido)).resolves.toEqual(pedido);
+    await expect(resolver(agendarVisita(pedido))).resolves.toEqual(pedido);
   });
 });

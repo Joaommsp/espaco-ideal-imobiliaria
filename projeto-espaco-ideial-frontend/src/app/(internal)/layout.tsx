@@ -3,11 +3,32 @@
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { ReactNode, useState } from "react";
-import { IconMenuDeep, IconProgressX } from "@tabler/icons-react";
+import {
+  IconBuildingEstate,
+  IconMapPin,
+  IconMenuDeep,
+  IconMessage,
+  IconProgressX,
+  IconRoute,
+} from "@tabler/icons-react";
+import type { ElementType } from "react";
 import { Cabecalho } from "@/components/landing/Cabecalho";
 import { BotaoLink } from "@/components/ui/Botao";
 import { CONTATO } from "@/data/contato";
 import { SECOES } from "@/data/navegacao";
+import { MICRO_ROTULO } from "@/lib/utils/estilos";
+
+/**
+ * O ícone é escolha de apresentação, e este é o único lugar que os mostra —
+ * o cabeçalho lista as mesmas seções só com texto. Por isso o mapa vive aqui,
+ * e não em `data/navegacao.ts`, que é dado puro.
+ */
+const ICONE_DA_SECAO: Record<string, ElementType> = {
+  "/properties": IconBuildingEstate,
+  "/#cidades": IconMapPin,
+  "/#como-funciona": IconRoute,
+  "/#contato": IconMessage,
+};
 
 export interface LayoutInternoProps {
   children: ReactNode;
@@ -57,9 +78,7 @@ export default function LayoutInterno({ children }: LayoutInternoProps) {
               className="fixed right-0 top-0 z-50 flex h-full w-72 flex-col bg-white p-5 shadow-flutuante md:hidden"
             >
               <div className="mb-7 flex items-center justify-between">
-                <span className="text-[0.7rem] font-bold uppercase tracking-[0.12em] text-tinta-fraca">
-                  Navegar
-                </span>
+                <span className={MICRO_ROTULO}>Navegar</span>
                 <button
                   onClick={() => setMenuAberto(false)}
                   aria-label="Fechar o menu"
@@ -70,18 +89,22 @@ export default function LayoutInterno({ children }: LayoutInternoProps) {
               </div>
 
               <ul className="flex flex-col gap-1">
-                {SECOES.map((secao) => (
+                {SECOES.map((secao) => {
+                  const Icone = ICONE_DA_SECAO[secao.href];
+
+                  return (
                   <li key={secao.href}>
                     <Link
                       href={secao.href}
                       onClick={() => setMenuAberto(false)}
                       className="flex items-center gap-3 rounded-lg p-2.5 text-tinta transition-colors hover:bg-areia-escura"
                     >
-                      <secao.icone size={21} className="text-tinta-fraca" />
+                      {Icone ? <Icone size={21} className="text-tinta-fraca" /> : null}
                       <span>{secao.rotulo}</span>
                     </Link>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
 
               <BotaoLink
