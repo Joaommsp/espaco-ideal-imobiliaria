@@ -1,28 +1,22 @@
 import Image from "next/image";
 import Link from "next/link";
 import { BotaoLink } from "@/components/ui/Botao";
+import { CONTATO } from "@/data/contato";
+import { SECOES } from "@/data/navegacao";
 // Duas versões da mesma logo: a original é preta e some no grafite do hero.
 import logoClara from "../../../public/images/logo-full-horizontal-light.png";
 import logoEscura from "../../../public/images/logo-full-horizontal-dark.png";
-
-const SECOES = [
-  { rotulo: "Imóveis", href: "/properties" },
-  { rotulo: "Cidades", href: "/#cidades" },
-  { rotulo: "Como funciona", href: "/#como-funciona" },
-  { rotulo: "Contato", href: "/#contato" },
-];
 
 type Tom = "escuro" | "claro";
 
 interface CabecalhoProps {
   /** "escuro" sobre o hero da landing; "claro" nas telas de conteúdo. */
   tom?: Tom;
-  /** Nome de quem está logado — quando ausente, mostra entrar/criar conta. */
-  usuario?: string | null;
-  acaoDeUsuario?: React.ReactNode;
+  /** Botão extra à direita — o layout interno usa para abrir o menu. */
+  acaoExtra?: React.ReactNode;
 }
 
-export function Cabecalho({ tom = "escuro", usuario, acaoDeUsuario }: CabecalhoProps) {
+export function Cabecalho({ tom = "escuro", acaoExtra }: CabecalhoProps) {
   const escuro = tom === "escuro";
 
   return (
@@ -60,38 +54,17 @@ export function Cabecalho({ tom = "escuro", usuario, acaoDeUsuario }: CabecalhoP
           ))}
         </nav>
 
+        {/* Sem conta de usuário, falar com o corretor é a ação do cabeçalho. */}
         <div className="ml-auto flex items-center gap-3 md:ml-0">
-          {usuario ? (
-            <>
-              <span
-                className={[
-                  "hidden text-sm sm:inline",
-                  escuro ? "text-white/70" : "text-tinta-suave",
-                ].join(" ")}
-              >
-                Olá, <b className={escuro ? "text-white" : "text-tinta"}>{usuario}</b>
-              </span>
-              {acaoDeUsuario}
-            </>
-          ) : (
-            <>
-              <BotaoLink
-                href="/login"
-                variante={escuro ? "vidro" : "contorno"}
-                tamanho="compacto"
-              >
-                Entrar
-              </BotaoLink>
-              <BotaoLink
-                href="/register"
-                variante="laranja"
-                tamanho="compacto"
-                className="hidden sm:inline-flex"
-              >
-                Criar conta
-              </BotaoLink>
-            </>
-          )}
+          <BotaoLink
+            href={CONTATO.whatsapp}
+            externo
+            variante={escuro ? "vidro" : "laranja"}
+            tamanho="compacto"
+          >
+            Falar no WhatsApp
+          </BotaoLink>
+          {acaoExtra}
         </div>
       </div>
     </header>

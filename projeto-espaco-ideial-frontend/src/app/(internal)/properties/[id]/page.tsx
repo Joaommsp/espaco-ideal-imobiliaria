@@ -11,12 +11,10 @@ import { buscarImovel } from "@/lib/services/imoveis";
 import type { Imovel } from "@/lib/types/imovel";
 import { formatarArea, formatarBRL } from "@/lib/utils/formatters";
 import { ehLocacao, localDoImovel, tituloDoImovel } from "@/lib/utils/imovel";
-import { useAuth } from "../../../contexts/AuthContext";
 
 type Situacao = "carregando" | "pronto" | "erro";
 
 export default function PaginaDoImovel({ params }: { params: { id: string } }) {
-  const { userName } = useAuth();
   const [imovel, setImovel] = useState<Imovel | null>(null);
   const [situacao, setSituacao] = useState<Situacao>("carregando");
   const [erro, setErro] = useState("");
@@ -183,11 +181,7 @@ export default function PaginaDoImovel({ params }: { params: { id: string } }) {
           </div>
 
           <aside className="lg:sticky lg:top-6 lg:self-start">
-            <AgendarVisita
-              imovelId={imovel.id}
-              endereco={imovel.endereco}
-              nomeDoUsuario={String(userName ?? "")}
-            />
+            <AgendarVisita imovelId={imovel.id} endereco={imovel.endereco} />
 
             <div className="mt-4 rounded-cartao border border-areia-linha bg-white p-5">
               <h2 className="font-display text-lg">Falar com um corretor</h2>
