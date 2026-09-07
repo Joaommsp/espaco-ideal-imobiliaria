@@ -1,8 +1,9 @@
-import Image from "next/image";
 import Link from "next/link";
 import { BarraDeBusca } from "@/components/landing/BarraDeBusca";
 import { Cabecalho } from "@/components/landing/Cabecalho";
 import { Globo } from "@/components/landing/Globo";
+import { OrbitaDeCidades } from "@/components/landing/OrbitaDeCidades";
+import { MapaDePracas } from "@/components/landing/MapaDePracas";
 import { Rodape } from "@/components/landing/Rodape";
 import { AvisoDeErro } from "@/components/imoveis/AvisoDeErro";
 import { BotaoLink } from "@/components/ui/Botao";
@@ -71,7 +72,6 @@ export default async function PaginaInicial() {
 
   // Praças com contagem e foto do próprio catálogo.
   const pracas = montarPracas(cidades, imoveis);
-  const baloes = pracas.filter((praca) => praca.balao);
 
   return (
     <>
@@ -104,22 +104,13 @@ export default async function PaginaInicial() {
         <div className="relative -mt-6 h-[320px] md:h-[460px]">
           <div
             aria-hidden
-            className="absolute inset-0 z-10 bg-[radial-gradient(60%_50%_at_50%_62%,theme(colors.laranja.DEFAULT/22%),transparent_70%)]"
+            className="absolute inset-0 z-[15] bg-[radial-gradient(60%_50%_at_50%_62%,theme(colors.laranja.DEFAULT/22%),transparent_70%)]"
           />
-          <div className="absolute inset-0 z-0 overflow-hidden">
-            <Globo />
+          <div className="absolute inset-0 z-10 overflow-hidden">
+            <Globo pracas={pracas} />
           </div>
 
-          {baloes.map((praca) => (
-            <span
-              key={praca.nome}
-              style={{ left: praca.balao?.x, top: praca.balao?.y }}
-              className="absolute z-20 hidden -translate-x-1/2 animate-surgir items-center gap-2 rounded-xl bg-white/95 px-3 py-2 text-[0.74rem] text-grafite shadow-cartao md:flex"
-            >
-              <b className="text-[0.82rem]">{praca.nome}</b>
-              <span className="text-tinta-fraca">{praca.imoveis} imóveis</span>
-            </span>
-          ))}
+          <OrbitaDeCidades pracas={pracas} />
         </div>
       </section>
 
@@ -185,42 +176,7 @@ export default async function PaginaInicial() {
             Cada praça com corretor próprio, que conhece o bairro de verdade.
           </p>
 
-          <ul className="mt-7 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
-            {pracas.slice(0, 6).map((praca, indice) => (
-              // A foto é de um imóvel daquela cidade. Praça sem imóvel
-              // cadastrado (as internacionais) cai no degradê.
-              <li
-                key={praca.nome}
-                className="group relative aspect-[3/4] overflow-hidden rounded-xl bg-gradient-to-br from-grafite-claro to-grafite"
-              >
-                {praca.imagem ? (
-                  <Image
-                    src={praca.imagem}
-                    alt=""
-                    fill
-                    sizes="(max-width: 768px) 45vw, 190px"
-                    className="object-cover opacity-70 transition-[transform,opacity] duration-500 group-hover:scale-105 group-hover:opacity-85"
-                  />
-                ) : (
-                  <span
-                    aria-hidden
-                    className="absolute inset-x-0 top-0 h-1 bg-laranja"
-                    style={{ opacity: 0.35 + indice * 0.1 }}
-                  />
-                )}
-                <span
-                  aria-hidden
-                  className="absolute inset-0 bg-gradient-to-t from-grafite via-grafite/40 to-transparent"
-                />
-                <span className="absolute bottom-3 left-3 z-10 text-white">
-                  <b className="block font-display text-base">{praca.nome}</b>
-                  <span className="text-[0.74rem] text-white/70">
-                    {praca.pais} · {praca.imoveis} imóveis
-                  </span>
-                </span>
-              </li>
-            ))}
-          </ul>
+          <MapaDePracas pracas={pracas} />
         </section>
 
         <section id="como-funciona" className="bg-areia-escura py-16">

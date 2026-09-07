@@ -29,3 +29,11 @@ export function localDoImovel(imovel: Imovel): string {
 export function ehLocacao(imovel: Imovel): boolean {
   return imovel.transacao?.nomeTransacao?.trim().toLowerCase() === "locação";
 }
+
+/**
+ * "4 imóveis", "1 imóvel". A concordância estava reescrita em várias telas —
+ * o mapa, a lista de praças e o cabeçalho do catálogo.
+ */
+export function contarImoveis(quantidade: number): string {
+  return `${quantidade} ${quantidade === 1 ? "imóvel" : "imóveis"}`;
+}

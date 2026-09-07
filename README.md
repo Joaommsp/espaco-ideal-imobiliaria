@@ -46,6 +46,31 @@ A rota `/` apresenta a imobiliária. O globo é [COBE](https://github.com/shudin
 (5 KB, sem Three.js) e carrega dado real: cada marcador é uma cidade do
 catálogo, com a contagem vinda do banco.
 
+Os cards das praças circulam o globo num anel inclinado — quem vem à frente
+cresce, quem passa atrás esmaece e sai por trás da esfera. Prendê-los à
+coordenada real seria mais fiel e foi descartado com o dado na mão: doze das
+catorze praças são do Nordeste e cairiam dentro de cem pixels, virando um
+borrão.
+
+### Mapa das praças
+
+![Mapa](./docs/prints/07-mapa.webp)
+
+A seção "Onde a gente atua" é um mapa [Leaflet](https://leafletjs.com) com os
+tiles do OpenStreetMap, dessaturados para o laranja dos pinos ser a única cor
+forte. O pino cresce com a carteira da praça, e clicar numa cidade — no mapa
+ou na lista ao lado — aproxima até o nível de rua e abre o balão, que leva ao
+catálogo já filtrado por aquela cidade.
+
+Juazeiro e Petrolina ficam a 0,03° uma da outra, separadas pelo Rio São
+Francisco: no zoom inicial os dois pinos se cobrem. Pinos que chegam perto
+demais viram um grupo com a soma e se separam sozinhos ao aproximar — feito à
+mão, sem `leaflet.markercluster`, que custaria mais que o problema para doze
+praças.
+
+O Leaflet só é baixado quando a seção chega perto da tela, então a abertura da
+landing não paga por ele.
+
 ### Catálogo
 
 ![Imóveis](./docs/prints/02-imoveis.webp)

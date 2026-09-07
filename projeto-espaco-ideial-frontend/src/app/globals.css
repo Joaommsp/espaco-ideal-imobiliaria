@@ -40,3 +40,138 @@
     0 0 0 0.5px rgba(15, 19, 23, 0.1);
   cursor: grab;
 }
+
+/* ---------------------------------------------------------------------------
+   Mapa das praças (Leaflet)
+   O Leaflet monta os pinos e o balão fora do React, então o estilo deles não
+   pode viver numa classe do componente — precisa ser global.
+   --------------------------------------------------------------------------- */
+
+.pino-praca {
+  display: grid;
+  place-items: center;
+  /* Centralizar a caixa da linha não centraliza o dígito: a Archivo tem mais
+     ascent que descent, e o glifo sobe. O empurrão é em `em` para acompanhar
+     os pinos, que variam de tamanho conforme a carteira da praça. */
+  line-height: 1;
+  padding-top: 0.16em;
+  border-radius: 999px;
+  background: theme(colors.laranja.DEFAULT);
+  color: theme(colors.white);
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  border: 2px solid theme(colors.white);
+  box-shadow: 0 3px 10px rgba(15, 19, 23, 0.3);
+  transition:
+    transform 160ms theme(transitionTimingFunction.mola),
+    background-color 160ms;
+}
+
+.mapa-pracas .leaflet-marker-icon:hover .pino-praca,
+.pino-praca.em-foco {
+  background: theme(colors.grafite.DEFAULT);
+  transform: scale(1.12);
+}
+
+/* Grupo: escuro para se distinguir da praça única e sugerir "tem mais aqui". */
+.pino-praca.agrupado {
+  background: theme(colors.grafite.DEFAULT);
+  box-shadow: 0 3px 12px rgba(15, 19, 23, 0.42);
+}
+
+.mapa-pracas .leaflet-popup-content-wrapper {
+  border-radius: theme(borderRadius.cartao);
+  box-shadow: 0 14px 34px rgba(15, 19, 23, 0.24);
+}
+
+.mapa-pracas .leaflet-popup-content {
+  margin: 12px 14px 13px;
+}
+
+.balao-praca strong {
+  font-family: theme(fontFamily.display);
+  font-size: 1rem;
+  font-weight: 600;
+  color: theme(colors.tinta.DEFAULT);
+}
+
+.balao-praca p {
+  margin: 3px 0 0;
+  font-size: 0.78rem;
+  color: theme(colors.tinta.suave);
+}
+
+/* A folha do Leaflet pinta todo `a` do mapa de #0078A8 e é carregada depois
+   desta, com a mesma especificidade. Daí o seletor mais longo: sem ele o texto
+   do botão fica azul sobre o grafite, em 2,3:1 de contraste. */
+.mapa-pracas .balao-praca a {
+  display: inline-flex;
+  margin-top: 10px;
+  border-radius: 999px;
+  background: theme(colors.grafite.DEFAULT);
+  color: theme(colors.white);
+  padding: 6px 13px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color 150ms;
+}
+
+.mapa-pracas .balao-praca a:hover,
+.mapa-pracas .balao-praca a:focus-visible {
+  background: theme(colors.laranja.DEFAULT);
+  color: theme(colors.white);
+}
+
+/* Mesma disputa, nos dois outros lugares em que o azul do Leaflet aparece. */
+.mapa-pracas .leaflet-control-attribution a {
+  color: theme(colors.tinta.suave);
+}
+
+.mapa-pracas .leaflet-control-attribution a:hover {
+  color: theme(colors.laranja.escuro);
+}
+
+/* `tinta-fraca` seria coerente com um ícone secundário, mas dá 4,2:1 sobre o
+   branco — abaixo do mínimo. `tinta-suave` mantém a hierarquia e chega a 7,6. */
+.mapa-pracas .leaflet-popup a.leaflet-popup-close-button {
+  color: theme(colors.tinta.suave);
+}
+
+.mapa-pracas .leaflet-popup a.leaflet-popup-close-button:hover,
+.mapa-pracas .leaflet-popup a.leaflet-popup-close-button:focus {
+  color: theme(colors.tinta.DEFAULT);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pino-praca {
+    transition: none;
+  }
+}
+
+/* O OSM é colorido demais para a paleta areia: dessaturar devolve o mapa
+   discreto que o desenho pede e deixa o laranja dos pinos sozinho em cena. */
+.mapa-pracas .leaflet-tile-pane {
+  filter: grayscale(1) contrast(0.92) brightness(1.06);
+}
+
+/* Nome da praça ao lado do pino: sem caixa, para não virar um segundo balão. */
+.rotulo-praca.leaflet-tooltip {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+  font-family: theme(fontFamily.corpo);
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: theme(colors.tinta.DEFAULT);
+  text-shadow:
+    0 0 3px theme(colors.white),
+    0 0 6px theme(colors.white),
+    0 0 9px theme(colors.white);
+}
+
+.rotulo-praca.leaflet-tooltip::before {
+  display: none;
+}

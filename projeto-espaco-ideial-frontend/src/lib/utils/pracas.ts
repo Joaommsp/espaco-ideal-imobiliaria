@@ -16,6 +16,9 @@ export function montarPracas(cidades: Opcao[], imoveis: Imovel[]): Praca[] {
         nome: cidade.nome,
         pais: "Brasil",
         imoveis: daCidade.length,
+        // Levar o id junto evita que quem consome a praça precise refazer a
+        // junção por nome só para descobri-lo.
+        cidadeId: cidade.id,
         coordenada: COORDENADA_POR_CIDADE[cidade.nome] ?? ([0, 0] as [number, number]),
         imagem: comFoto?.urlImagem,
       } satisfies Praca;
