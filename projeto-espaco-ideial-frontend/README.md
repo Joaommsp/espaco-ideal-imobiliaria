@@ -1,36 +1,81 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Espaço Ideal — vitrine
 
-## Getting Started
+Site público da imobiliária: landing, catálogo com filtros, ficha do imóvel e
+agendamento de visita.
 
-First, run the development server:
+Esta é a branch **`demo`** — a versão de exibição, feita para publicar sem
+infraestrutura. Não há API, banco nem autenticação: o catálogo mora no próprio
+bundle. A versão com backend (NestJS + Prisma + PostgreSQL + Firebase) está na
+`main`.
+
+> Os 28 imóveis, os preços e as praças são fictícios, e as fotos foram geradas
+> por IA. Nenhum formulário envia dado para lugar nenhum.
+
+## Rodando
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Nenhuma variável de ambiente. Nada para subir antes.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Comando         | O que faz                                  |
+| --------------- | ------------------------------------------ |
+| `npm run dev`   | desenvolvimento em http://localhost:3000   |
+| `npm run build` | build de produção                          |
+| `npm run lint`  | ESLint                                     |
+| `npm test`      | Vitest — catálogo, serviços e regras puras |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Publicando na Vercel
 
-## Learn More
+O repositório é um monorepo e este projeto é uma pasta dentro dele. Ao importar,
+configure:
 
-To learn more about Next.js, take a look at the following resources:
+**Root Directory:** `projeto-espaco-ideial-frontend`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+O resto a Vercel detecta sozinha (Next.js 14). Sem variável de ambiente.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Como os dados funcionam sem backend
 
-## Deploy on Vercel
+Todo o acesso a dados passa por `src/lib/services/imoveis.ts`. Na `main` esse
+módulo fala com a API; aqui ele lê `src/lib/mocks/catalogo.ts`, transcrito do
+seed do Prisma — 12 cidades, 8 categorias, 2 negócios e 28 imóveis, com as
+relações já resolvidas.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Como as assinaturas exportadas são as mesmas, nenhuma tela sabe da troca. Duas
+escolhas que valem saber:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **As funções continuam assíncronas, com um atraso curto.** Responder na hora
+  apagaria os estados de carregamento — parte do que este site tem para mostrar.
+- **Imóvel inexistente rejeita a promessa**, em vez de devolver vazio. A API
+  respondia `200 null` e a tela caía num erro sem mensagem.
+
+O agendamento valida os campos e percorre o fluxo inteiro — carregando, erro,
+confirmação — mas nada sai do navegador.
+
+## Estrutura
+
+```
+src/
+├── app/                  rotas (App Router)
+│   ├── page.tsx          landing
+│   └── (internal)/       catálogo, ficha do imóvel e busca por rota
+├── components/
+│   ├── landing/          cabeçalho, globo das praças, rodapé
+│   ├── imoveis/          grade, esqueleto, aviso de erro, agendamento
+│   └── ui/               botão, campos, paginação, menus, faixa de preço
+├── data/                 praças, contato e navegação
+└── lib/
+    ├── mocks/catalogo.ts o catálogo
+    ├── services/         a camada que as telas chamam
+    ├── types/            o formato do imóvel
+    └── utils/            formatadores, telefone, praças
+```
+
+## Autor
+
+**João Marcos** — Frontend & UI/UX ·
+[Portfólio](https://softwaredeveloper-jmmsp.vercel.app/) ·
+[GitHub](https://github.com/Joaommsp) ·
+[LinkedIn](https://www.linkedin.com/in/joaomarcos10oficial/)
