@@ -7,6 +7,12 @@ export interface Praca {
   pais: string;
   imoveis: number;
   /**
+   * Id da cidade no catálogo, quando a praça é uma delas. As internacionais
+   * são institucionais e não têm — é o que distingue uma praça clicável, que
+   * leva ao catálogo filtrado, de uma que só marca presença no mapa.
+   */
+  cidadeId?: number;
+  /**
    * Foto da cidade para o card. Enquanto não houver, o card cai no degradê —
    * parear com foto de imóvel colocaria uma casa de Aracaju em Lisboa.
    */

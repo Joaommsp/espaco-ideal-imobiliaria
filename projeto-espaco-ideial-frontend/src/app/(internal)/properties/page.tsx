@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AvisoDeErro } from "@/components/imoveis/AvisoDeErro";
 import { EsqueletoDeCards } from "@/components/imoveis/EsqueletoDeCards";
 import { GradeDeImoveis, type ModoDeExibicao } from "@/components/imoveis/GradeDeImoveis";
@@ -17,6 +18,7 @@ import {
   listarTransacoes,
 } from "@/lib/services/imoveis";
 import type { Imovel, Opcao } from "@/lib/types/imovel";
+import { contarImoveis } from "@/lib/utils/imovel";
 
 type Situacao = "carregando" | "pronto" | "erro";
 type Ordem = "recentes" | "menor" | "maior" | "area";
@@ -38,7 +40,17 @@ const ORDENS: { valor: Ordem; rotulo: string }[] = [
   { valor: "area", rotulo: "Maior área" },
 ];
 
-export default function PaginaDeImoveis() {
+/**
+ * O mapa da landing manda para cá com `?cidade=`. Ler o filtro da URL torna
+ * qualquer busca compartilhável por link, em vez de existir só no estado da
+ * aba de quem clicou.
+ */
+function CatalogoDeImoveis() {
+  const parametros = useSearchParams();
+  const router = useRouter();
+  const caminho = usePathname();
+  const cidadeDaUrl = Number(parametros.get("cidade")) || TODAS;
+
   const [imoveis, setImoveis] = useState<Imovel[]>(SEM_IMOVEIS);
   const [cidades, setCidades] = useState<Opcao[]>(SEM_OPCOES);
   const [categorias, setCategorias] = useState<Opcao[]>(SEM_OPCOES);
@@ -46,7 +58,7 @@ export default function PaginaDeImoveis() {
   const [situacao, setSituacao] = useState<Situacao>("carregando");
   const [erro, setErro] = useState("");
 
-  const [cidade, setCidade] = useState<number | string>(TODAS);
+  const [cidade, setCidade] = useState<number | string>(cidadeDaUrl);
   const [categoria, setCategoria] = useState<number | string>(TODAS);
   const [transacao, setTransacao] = useState<number | string>(QUALQUER);
   const [quartosMinimos, setQuartosMinimos] = useState<number | string>(0);
@@ -81,6 +93,38 @@ export default function PaginaDeImoveis() {
   useEffect(() => {
     void carregar();
   }, [carregar]);
+
+  /**
+   * O filtro de cidade vai para a URL. É o que faz o link do mapa funcionar na
+   * volta e torna qualquer busca por cidade compartilhável — sem isto a URL
+   * diria uma coisa e a tela mostraria outra depois do primeiro clique.
+   */
+  useEffect(() => {
+    const atual = Number(parametros.get("cidade")) || TODAS;
+    if (atual === Number(cidade)) return;
+
+    const busca = new URLSearchParams(parametros.toString());
+    if (Number(cidade) === TODAS) {
+      busca.delete("cidade");
+    } else {
+      busca.set("cidade", String(cidade));
+    }
+
+    const consulta = busca.toString();
+    router.replace(consulta ? `${caminho}?${consulta}` : caminho, { scroll: false });
+  }, [cidade, parametros, router, caminho]);
+
+  /**
+   * `?cidade=999` filtraria por uma cidade que não existe e deixaria a grade
+   * vazia sem explicar por quê. Assim que o catálogo chega, um id desconhecido
+   * volta para "todas".
+   */
+  useEffect(() => {
+    if (cidades.length === 0 || Number(cidade) === TODAS) return;
+    if (!cidades.some((opcao) => opcao.id === Number(cidade))) {
+      setCidade(TODAS);
+    }
+  }, [cidades, cidade]);
 
   // A faixa acompanha o catálogo: não faz sentido oferecer um teto de dez
   // milhões se o imóvel mais caro custa um.
@@ -163,27 +207,13 @@ export default function PaginaDeImoveis() {
   }
 
   return (
-    <main className="min-h-dvh bg-areia">
-      <header className="border-b border-areia-linha bg-white">
-        <div className="mx-auto max-w-[1180px] px-6 py-10">
-          <nav aria-label="Você está aqui" className="text-sm text-tinta-fraca">
-            <Link href="/" className="hover:text-laranja">
-              Início
-            </Link>
-            <span aria-hidden> / </span>
-            <span className="text-tinta">Imóveis</span>
-          </nav>
-          <h1 className="mt-3 font-display text-[clamp(1.9rem,4vw,2.7rem)] font-semibold">
-            Todos os imóveis
-          </h1>
-          <p className="mt-2 max-w-[54ch] text-tinta-suave">
-            {situacao === "pronto"
-              ? `${imoveis.length} ${imoveis.length === 1 ? "imóvel disponível" : "imóveis disponíveis"} para compra e locação.`
-              : "Carregando o catálogo…"}
-          </p>
-        </div>
-      </header>
-
+    <Casca
+      resumo={
+        situacao === "pronto"
+          ? `${contarImoveis(imoveis.length)} ${imoveis.length === 1 ? "disponível" : "disponíveis"} para compra e locação.`
+          : "Carregando o catálogo…"
+      }
+    >
       <div className="mx-auto max-w-[1180px] px-6 py-8">
         <div className="mb-7 flex flex-wrap items-end gap-4 rounded-cartao border border-areia-linha bg-white p-4">
           <Segmentado
@@ -310,6 +340,54 @@ export default function PaginaDeImoveis() {
           <Paginacao pagina={paginaAtual} totalDePaginas={totalDePaginas} aoTrocar={irPara} />
         ) : null}
       </div>
+    </Casca>
+  );
+}
+
+/**
+ * Cabeçalho e moldura da página. Sai do corpo do catálogo para que o fallback
+ * do Suspense mostre exatamente a mesma coisa: sem isto, a rota pré-renderiza
+ * só a grade, e o título e o breadcrumb aparecem depois, saltando o layout.
+ */
+function Casca({ resumo, children }: { resumo: string; children: ReactNode }) {
+  return (
+    <main className="min-h-dvh bg-areia">
+      <header className="border-b border-areia-linha bg-white">
+        <div className="mx-auto max-w-[1180px] px-6 py-10">
+          <nav aria-label="Você está aqui" className="text-sm text-tinta-fraca">
+            <Link href="/" className="hover:text-laranja">
+              Início
+            </Link>
+            <span aria-hidden> / </span>
+            <span className="text-tinta">Imóveis</span>
+          </nav>
+          <h1 className="mt-3 font-display text-[clamp(1.9rem,4vw,2.7rem)] font-semibold">
+            Todos os imóveis
+          </h1>
+          <p className="mt-2 max-w-[54ch] text-tinta-suave">{resumo}</p>
+        </div>
+      </header>
+      {children}
     </main>
+  );
+}
+
+/**
+ * `useSearchParams` suspende na primeira pintura. Sem esta fronteira o Next
+ * desiste de pré-renderizar a rota inteira.
+ */
+export default function PaginaDeImoveis() {
+  return (
+    <Suspense
+      fallback={
+        <Casca resumo="Carregando o catálogo…">
+          <div className="mx-auto max-w-[1180px] px-6 py-8">
+            <EsqueletoDeCards />
+          </div>
+        </Casca>
+      }
+    >
+      <CatalogoDeImoveis />
+    </Suspense>
   );
 }
