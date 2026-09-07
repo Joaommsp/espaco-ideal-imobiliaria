@@ -1,48 +1,63 @@
+import { CATEGORIAS, CIDADES, IMOVEIS, TRANSACOES } from "@/lib/mocks/catalogo";
 import type { Imovel, Opcao } from "@/lib/types/imovel";
 
 /**
- * São dois endereços porque são dois pontos de vista. No navegador a API é
- * publicada em localhost; dentro do container o localhost é o próprio site,
- * então o servidor precisa chamar o serviço pelo nome na rede do Docker.
+ * Esta é a versão de exibição do site: o catálogo mora no bundle, não em uma
+ * API. As funções abaixo mantêm a assinatura que as telas já usavam quando
+ * havia backend — por isso nenhuma página precisou mudar.
+ *
+ * Elas continuam assíncronas de propósito. Buscar dado é assíncrono no mundo
+ * real, e responder de forma síncrona apagaria os estados de carregamento que
+ * este site foi desenhado para ter.
  */
-const API_NAVEGADOR = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:2002";
-const API_SERVIDOR = process.env.API_URL_INTERNA ?? API_NAVEGADOR;
 
-function enderecoDaApi(): string {
-  return typeof window === "undefined" ? API_SERVIDOR : API_NAVEGADOR;
+/** Curto o bastante para não irritar, longo o bastante para o esqueleto aparecer. */
+const ATRASO_DA_REDE_MS = 260;
+
+function responder<T>(dados: T): Promise<T> {
+  return new Promise((resolver) => {
+    setTimeout(() => resolver(dados), ATRASO_DA_REDE_MS);
+  });
 }
 
-async function buscar<T>(caminho: string): Promise<T> {
-  const resposta = await fetch(`${enderecoDaApi()}${caminho}`, { cache: "no-store" });
-
-  if (!resposta.ok) {
-    throw new Error(`A API respondeu ${resposta.status} em ${caminho}.`);
-  }
-
-  return resposta.json() as Promise<T>;
+/**
+ * Cópia antes de entregar: as telas guardam a lista em estado e ordenam em
+ * cima dela. Sem isto, um `sort` numa página reordenaria o catálogo para todas
+ * as outras, porque é o mesmo array do módulo.
+ */
+function copiar(imovel: Imovel): Imovel {
+  return { ...imovel };
 }
 
 export function listarImoveis(): Promise<Imovel[]> {
-  return buscar<Imovel[]>("/properties/all");
+  return responder(IMOVEIS.map(copiar));
 }
 
 export function buscarImovel(id: number | string): Promise<Imovel> {
-  return buscar<Imovel>(`/properties/${id}`);
+  const procurado = Number(id);
+  const encontrado = Number.isInteger(procurado)
+    ? IMOVEIS.find((imovel) => imovel.id === procurado)
+    : undefined;
+
+  if (!encontrado) {
+    // Rejeitar em vez de devolver nada: a tela já tem um aviso de erro pronto,
+    // e ele precisa de um motivo para mostrar.
+    return Promise.reject(new Error(`Não encontramos o imóvel ${id} no catálogo.`));
+  }
+
+  return responder(copiar(encontrado));
 }
 
-export async function listarCidades(): Promise<Opcao[]> {
-  const cidades = await buscar<{ id: number; nomeCidade: string }[]>("/cities/all");
-  return cidades.map((cidade) => ({ id: cidade.id, nome: cidade.nomeCidade }));
+export function listarCidades(): Promise<Opcao[]> {
+  return responder(CIDADES.map((cidade) => ({ ...cidade })));
 }
 
-export async function listarCategorias(): Promise<Opcao[]> {
-  const categorias = await buscar<{ id: number; nomeCategoria: string }[]>("/categories/all");
-  return categorias.map((categoria) => ({ id: categoria.id, nome: categoria.nomeCategoria }));
+export function listarCategorias(): Promise<Opcao[]> {
+  return responder(CATEGORIAS.map((categoria) => ({ ...categoria })));
 }
 
-export async function listarTransacoes(): Promise<Opcao[]> {
-  const transacoes = await buscar<{ id: number; nomeTransacao: string }[]>("/transactions/all");
-  return transacoes.map((transacao) => ({ id: transacao.id, nome: transacao.nomeTransacao }));
+export function listarTransacoes(): Promise<Opcao[]> {
+  return responder(TRANSACOES.map((transacao) => ({ ...transacao })));
 }
 
 export interface FiltrosDeBusca {
@@ -53,56 +68,35 @@ export interface FiltrosDeBusca {
   qtdVagasGaragem: number | string;
 }
 
-/** A rota da API exige os cinco filtros na ordem — é uma busca exata. */
+/** Os cinco filtros valem por igualdade exata — é uma busca exata, não uma faixa. */
 export function buscarImoveis(filtros: FiltrosDeBusca): Promise<Imovel[]> {
-  const { transacaoId, cityId, categoryId, qtdQuartos, qtdVagasGaragem } = filtros;
-  return buscar<Imovel[]>(
-    `/properties/${transacaoId}/${cityId}/${categoryId}/${qtdQuartos}/${qtdVagasGaragem}`,
+  const resultado = IMOVEIS.filter(
+    (imovel) =>
+      imovel.transacaoId === Number(filtros.transacaoId) &&
+      imovel.cityId === Number(filtros.cityId) &&
+      imovel.categoryId === Number(filtros.categoryId) &&
+      imovel.qtdQuartos === Number(filtros.qtdQuartos) &&
+      imovel.qtdVagasGaragem === Number(filtros.qtdVagasGaragem),
   );
+
+  // Nenhum resultado é uma resposta, não uma falha: a tela tem estado vazio.
+  return responder(resultado.map(copiar));
 }
 
 export interface NovoAgendamento {
-  nomeUsuario: string;
+  nome: string;
+  telefone: string;
   enderecoPropriedade: string;
   propertyId: number;
-  /** ISO 8601 — a API espera Date. */
-  date: string;
+  /** ISO 8601 — a data escolhida, montada em horário local. */
+  data: string;
 }
 
-/** Agenda a visita. Erro sobe para a tela mostrar o motivo, não o console. */
-export async function agendarVisita(dados: NovoAgendamento): Promise<void> {
-  const resposta = await fetch(`${enderecoDaApi()}/schedules`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(dados),
-  });
-
-  if (!resposta.ok) {
-    throw new Error(
-      `Não foi possível registrar a visita (a API respondeu ${resposta.status}).`,
-    );
-  }
-}
-
-export interface NovoUsuario {
-  id: string;
-  firebaseId: string;
-  nome: string;
-  email: string;
-  senha: string;
-}
-
-/** Espelha no nosso banco o usuário que o Firebase acabou de criar. */
-export async function registrarUsuario(dados: NovoUsuario): Promise<void> {
-  const resposta = await fetch(`${enderecoDaApi()}/users`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(dados),
-  });
-
-  if (!resposta.ok) {
-    throw new Error(
-      `A conta foi criada, mas não conseguimos registrá-la no sistema (${resposta.status}).`,
-    );
-  }
+/**
+ * Sem servidor não há onde gravar a visita. A função existe para que o
+ * formulário mantenha o fluxo inteiro — carregando, sucesso, erro — em vez de
+ * fingir que salvou no mesmo instante do clique.
+ */
+export function agendarVisita(dados: NovoAgendamento): Promise<NovoAgendamento> {
+  return responder(dados);
 }
